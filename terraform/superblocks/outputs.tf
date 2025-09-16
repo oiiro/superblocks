@@ -1,110 +1,82 @@
-# Outputs for Superblocks Deployment
+# Outputs for Superblocks Private Agent Deployment
 
-# Superblocks Module Outputs
-output "cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = module.superblocks.cluster_name
+# Hosted Zone Information (for DNS delegation)
+output "hosted_zone_id" {
+  description = "Route53 hosted zone ID for superblocks.oiiro.com"
+  value       = aws_route53_zone.superblocks.zone_id
 }
 
-output "cluster_arn" {
-  description = "ARN of the ECS cluster"
-  value       = module.superblocks.cluster_arn
+output "hosted_zone_name_servers" {
+  description = "Name servers for DNS delegation in parent zone"
+  value       = aws_route53_zone.superblocks.name_servers
 }
 
-output "service_name" {
-  description = "Name of the ECS service"
-  value       = module.superblocks.service_name
+# Agent Access Information
+output "agent_url" {
+  description = "URL to access the Superblocks agent"
+  value       = module.superblocks.agent_host_url
 }
 
-output "service_arn" {
-  description = "ARN of the ECS service"
-  value       = module.superblocks.service_arn
+output "agent_internal_url" {
+  description = "Internal load balancer URL for agent access"
+  value       = "https://${module.superblocks.lb_dns_name}"
 }
 
-output "task_definition_arn" {
-  description = "ARN of the ECS task definition"
-  value       = module.superblocks.task_definition_arn
-}
-
-# Load Balancer Outputs
-output "load_balancer_arn" {
-  description = "ARN of the Application Load Balancer"
-  value       = module.superblocks.load_balancer_arn
+# Infrastructure Details
+output "vpc_id" {
+  description = "VPC ID where Superblocks is deployed"
+  value       = module.superblocks.vpc_id
 }
 
 output "load_balancer_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.superblocks.load_balancer_dns_name
+  description = "Load balancer DNS name"
+  value       = module.superblocks.lb_dns_name
 }
 
-output "load_balancer_zone_id" {
-  description = "Zone ID of the Application Load Balancer"
-  value       = module.superblocks.load_balancer_zone_id
+# Security Groups
+output "lb_security_group_ids" {
+  description = "Load balancer security group IDs"
+  value       = module.superblocks.lb_security_group_ids
 }
 
-output "target_group_arn" {
-  description = "ARN of the target group"
-  value       = module.superblocks.target_group_arn
+output "ecs_security_group_ids" {
+  description = "ECS security group IDs"
+  value       = module.superblocks.ecs_security_group_ids
 }
 
-# Application URLs
-output "superblocks_url" {
-  description = "URL to access Superblocks application"
-  value = var.domain != "" ? (
-    var.subdomain != "" ? 
-    "https://${var.subdomain}.${var.domain}" : 
-    "https://${var.domain}"
-  ) : "https://${module.superblocks.load_balancer_dns_name}"
+# DNS Delegation Instructions
+output "dns_delegation_instructions" {
+  description = "Instructions for configuring DNS delegation in parent zone"
+  value = {
+    action = "Add NS record in oiiro.com hosted zone (shared services account)"
+    record_name = var.domain
+    record_type = "NS"
+    record_values = aws_route53_zone.superblocks.name_servers
+    parent_zone = "oiiro.com"
+    message = "Run this in shared services account: aws route53 change-resource-record-sets --hosted-zone-id <oiiro.com-zone-id> --change-batch '...' "
+  }
 }
 
-output "load_balancer_url" {
-  description = "Direct load balancer URL"
-  value       = "https://${module.superblocks.load_balancer_dns_name}"
+# Network Information
+output "subnet_ids" {
+  description = "Subnet IDs used for deployment"
+  value = {
+    lb_subnets  = module.superblocks.lb_subnet_ids
+    ecs_subnets = module.superblocks.ecs_subnet_ids
+  }
 }
 
-# SSL Certificate Outputs
-output "certificate_arn" {
-  description = "ARN of the SSL certificate"
-  value = var.certificate_arn != "" ? var.certificate_arn : (
-    length(aws_acm_certificate.superblocks) > 0 ? aws_acm_certificate.superblocks[0].arn : null
-  )
-}
-
-output "certificate_status" {
-  description = "Status of the SSL certificate"
-  value = length(aws_acm_certificate.superblocks) > 0 ? aws_acm_certificate.superblocks[0].status : "external"
-}
-
-# Route53 Outputs
-output "route53_record_name" {
-  description = "Name of the Route53 DNS record"
-  value = length(aws_route53_record.superblocks) > 0 ? aws_route53_record.superblocks[0].name : null
-}
-
-output "route53_record_fqdn" {
-  description = "FQDN of the Route53 DNS record"
-  value = length(aws_route53_record.superblocks) > 0 ? aws_route53_record.superblocks[0].fqdn : null
-}
-
-# Monitoring Outputs
-output "cloudwatch_log_group_name" {
-  description = "Name of the CloudWatch log group"
-  value       = aws_cloudwatch_log_group.superblocks.name
-}
-
-output "cloudwatch_log_group_arn" {
-  description = "ARN of the CloudWatch log group"
-  value       = aws_cloudwatch_log_group.superblocks.arn
-}
-
-output "cpu_alarm_arn" {
-  description = "ARN of the CPU utilization alarm"
-  value       = length(aws_cloudwatch_metric_alarm.cpu_high) > 0 ? aws_cloudwatch_metric_alarm.cpu_high[0].arn : null
-}
-
-output "memory_alarm_arn" {
-  description = "ARN of the memory utilization alarm"
-  value       = length(aws_cloudwatch_metric_alarm.memory_high) > 0 ? aws_cloudwatch_metric_alarm.memory_high[0].arn : null
+# Deployment Summary
+output "deployment_summary" {
+  description = "Summary of the Superblocks deployment"
+  value = {
+    agent_url = module.superblocks.agent_host_url
+    internal_lb_url = "https://${module.superblocks.lb_dns_name}"
+    hosted_zone_id = aws_route53_zone.superblocks.zone_id
+    dns_delegation_required = "Add NS records in oiiro.com zone: ${join(", ", aws_route53_zone.superblocks.name_servers)}"
+    vpc_id = module.superblocks.vpc_id
+    agent_status = "Deployed as private agent with internal load balancer"
+  }
 }
 
 # Auto Scaling Outputs

@@ -14,21 +14,38 @@ variable "aws_region" {
 
 # Superblocks Configuration
 variable "superblocks_agent_key" {
-  description = "Superblocks agent key for authentication"
+  description = "Superblocks agent key for authentication (from Superblocks dashboard)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = can(regex("^sb_agent_[a-zA-Z0-9]+$", var.superblocks_agent_key))
+    error_message = "Superblocks agent key must start with 'sb_agent_' followed by alphanumeric characters."
+  }
+}
+
+variable "superblocks_agent_tags" {
+  description = "Tags for Superblocks agent environment filtering"
+  type        = string
+  default     = "profile:*"
+}
+
+variable "superblocks_agent_environment" {
+  description = "Superblocks agent environment identifier"
+  type        = string
+  default     = "*"
 }
 
 variable "domain" {
-  description = "Domain name for Superblocks application"
+  description = "Domain name for Superblocks application (e.g., superblocks.oiiro.com)"
   type        = string
-  default     = ""
+  default     = "superblocks.oiiro.com"
 }
 
 variable "subdomain" {
-  description = "Subdomain for Superblocks application"
+  description = "Subdomain for Superblocks application (e.g., agent)"
   type        = string
-  default     = "app"
+  default     = "agent"
 }
 
 # ECS Configuration
@@ -109,7 +126,7 @@ variable "memory_units" {
 
 # Container Configuration
 variable "container_image" {
-  description = "Docker image for Superblocks container"
+  description = "Docker image for Superblocks container (uses official image if empty)"
   type        = string
   default     = ""
 }

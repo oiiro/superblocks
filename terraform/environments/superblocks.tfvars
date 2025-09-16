@@ -18,15 +18,18 @@ alb_allowed_cidrs = ["0.0.0.0/0"]  # Restrict this for production
 enable_flow_logs  = true
 flow_log_retention_days = 14
 
-# Superblocks Configuration
+# Superblocks Private Agent Configuration
 # IMPORTANT: Replace with your actual agent key from Superblocks dashboard
-superblocks_agent_key = "your-superblocks-agent-key-here"
+# Get from: https://app.superblocks.com -> Settings -> On-Premise Agent
+superblocks_agent_key = "sb_agent_your-actual-key-here"
+superblocks_agent_tags = "profile:production"
+superblocks_agent_environment = "production"
 
-# Domain Configuration (Optional)
-# domain    = "yourdomain.com"
-# subdomain = "superblocks"
-# route53_zone_id = "Z1D633PJN98FT9"
-# create_route53_record = true
+# Domain Configuration - agent.superblocks.oiiro.com
+domain = "superblocks.oiiro.com"
+subdomain = "agent"
+# Note: route53_zone_id will be created automatically
+# DNS delegation to oiiro.com zone required (see outputs)
 
 # ECS Configuration
 cluster_name         = "superblocks-cluster"
@@ -48,7 +51,7 @@ container_image = ""  # Will use default from module
 
 # Load Balancer Configuration
 load_balancer_type     = "application"
-load_balancer_internal = false
+load_balancer_internal = true  # Internal load balancer for private agent
 health_check_path      = "/health"
 health_check_port      = "traffic-port"
 
@@ -71,7 +74,11 @@ scale_out_cooldown      = 300
 
 # Security Configuration
 store_agent_key_in_ssm = true
-enable_execute_command = false  # Enable for debugging if needed
+enable_execute_command = false  # Disabled for security
+
+# Private Agent Network Access
+# Note: ALB is internal - requires VPN or bastion host access
+# Access via private network: https://agent.superblocks.oiiro.com
 
 # Cost Optimization
 enable_spot_instances     = false  # Enable for cost savings
@@ -79,9 +86,9 @@ spot_instance_percentage  = 0
 
 # Environment Variables for Superblocks Container
 environment_variables = {
-  # Add any custom environment variables here
-  # SUPERBLOCKS_ENV = "production"
-  # LOG_LEVEL = "info"
+  SUPERBLOCKS_ENV = "production"
+  LOG_LEVEL = "info"
+  SUPERBLOCKS_AGENT_ENVIRONMENT = "production"
 }
 
 # Backup Configuration
@@ -91,10 +98,12 @@ backup_retention_days = 7
 # Tags
 tags = {
   Project     = "Superblocks"
-  Environment = "standalone"
+  Environment = "production"
   ManagedBy   = "terraform"
   Owner       = "platform-team"
-  Purpose     = "temporary-deployment"
+  Purpose     = "private-agent-deployment"
   CostCenter  = "engineering"
-  Deployment  = "isolated"
+  Deployment  = "private-agent"
+  Agent       = "private"
+  Domain      = "agent.superblocks.oiiro.com"
 }
