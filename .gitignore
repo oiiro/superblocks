@@ -1,0 +1,65 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Environment files with secrets
+*.tfvars
+!*.tfvars.example
+!superblocks.tfvars
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+*~
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Local testing
+.env
+.env.local
+.env.*.local
+
+# SSH Keys
+*.pem
+*.key
+id_rsa*
+
+# AWS credentials
+.aws/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+
+# Documentation build
+docs/_build/
+docs/.build/
+
+# Temporary files
+temp/
+tmp/

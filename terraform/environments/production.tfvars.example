@@ -1,0 +1,107 @@
+# Production Environment Configuration Example
+# Copy this file to production.tfvars and customize for production deployment
+
+# Project Configuration
+project_name = "superblocks-prod"
+aws_region   = "us-east-1"
+
+# Network Configuration - Production sizing
+vpc_cidr              = "10.200.0.0/16"
+public_subnet_count   = 3  # Multi-AZ for high availability
+private_subnet_count  = 3
+create_nat_gateway    = true
+single_nat_gateway    = false  # Multiple NAT gateways for HA
+nat_gateway_count     = 3
+
+# Security Configuration - Restrictive for production
+alb_allowed_cidrs = [
+  "10.0.0.0/8",     # Internal networks only
+  "203.0.113.0/24"  # Replace with your office/VPN CIDR
+]
+enable_flow_logs         = true
+flow_log_retention_days  = 90  # Longer retention for compliance
+
+# Superblocks Configuration
+superblocks_agent_key = "your-production-agent-key-here"
+
+# Domain Configuration - Production domain
+domain               = "yourdomain.com"
+subdomain            = "superblocks"
+route53_zone_id      = "Z1D633PJN98FT9"
+create_route53_record = true
+
+# ECS Configuration - Production naming
+cluster_name         = "superblocks-prod-cluster"
+service_name         = "superblocks-prod-service"
+task_definition_name = "superblocks-prod-task"
+
+# Scaling Configuration - Production capacity
+desired_count = 3  # Higher baseline for production
+min_capacity  = 2  # Always maintain minimum availability
+max_capacity  = 20 # Allow higher scaling for peak loads
+
+# Resource Configuration - Higher specs for production
+cpu_units    = 4096  # 4 vCPU
+memory_units = 8192  # 8 GB RAM
+
+# Container Configuration
+container_port = 8080
+
+# Load Balancer Configuration
+load_balancer_type     = "application"
+load_balancer_internal = false
+health_check_path      = "/health"
+health_check_port      = "traffic-port"
+
+# SSL/TLS Configuration - Use existing certificate
+certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id"
+ssl_policy      = "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"  # Latest TLS policy
+
+# Monitoring and Logging - Enhanced for production
+log_retention_in_days     = 90   # Longer retention for compliance
+enable_container_insights = true
+enable_cloudwatch_alarms  = true
+cpu_alarm_threshold       = 70   # Lower threshold for proactive scaling
+memory_alarm_threshold    = 70
+
+# SNS Topic for alerts (create separately)
+alarm_actions = ["arn:aws:sns:us-east-1:123456789012:superblocks-alerts"]
+
+# Auto Scaling Configuration - Aggressive for production
+enable_auto_scaling      = true
+target_cpu_utilization   = 60   # Lower target for better performance
+scale_in_cooldown       = 600   # Longer cooldown to prevent flapping
+scale_out_cooldown      = 180   # Quick scale out for responsiveness
+
+# Security Configuration - Enhanced for production
+store_agent_key_in_ssm = true
+enable_execute_command = false  # Disabled for security
+
+# Cost Optimization - Disabled for production reliability
+enable_spot_instances     = false
+spot_instance_percentage  = 0
+
+# Environment Variables for Production
+environment_variables = {
+  SUPERBLOCKS_ENV = "production"
+  LOG_LEVEL      = "warn"
+  NODE_ENV       = "production"
+}
+
+# Backup Configuration - Enabled for production
+enable_backup         = true
+backup_retention_days = 30
+
+# Production Tags
+tags = {
+  Project      = "Superblocks"
+  Environment  = "production"
+  ManagedBy    = "terraform"
+  Owner        = "platform-team"
+  Purpose      = "business-critical"
+  CostCenter   = "engineering"
+  Compliance   = "required"
+  Backup       = "enabled"
+  Monitoring   = "enhanced"
+  DataClass    = "internal"
+}
