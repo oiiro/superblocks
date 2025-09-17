@@ -91,6 +91,9 @@ module "superblocks" {
   create_dns   = false  # No Route53 integration
   create_certs = false  # Use our self-signed certificate
   certificate_arn = aws_acm_certificate.superblocks.arn  # Provide self-signed cert
+  
+  # Explicitly set SSL to avoid count issues
+  ssl_enable = true  # Required for HTTPS listener
 
   # Container Configuration
   container_cpu           = var.cpu_units
