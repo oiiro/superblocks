@@ -3,12 +3,17 @@
 # Agent Access Information
 output "agent_url" {
   description = "Load balancer URL to access the Superblocks agent"
-  value       = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
+  value       = "https://${module.superblocks.lb_dns_name}"
 }
 
 output "load_balancer_dns_name" {
   description = "Load balancer DNS name (use this to access the agent)"
   value       = module.superblocks.lb_dns_name
+}
+
+output "certificate_warning" {
+  description = "Certificate information"
+  value       = "WARNING: Using self-signed certificate. You may need to bypass SSL warnings in your browser."
 }
 
 # Infrastructure Details
@@ -43,9 +48,10 @@ output "access_instructions" {
   description = "How to access the Superblocks agent"
   value = {
     method = var.load_balancer_internal ? "Internal VPC access only" : "Public internet access"
-    url = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
+    url = "https://${module.superblocks.lb_dns_name}"
     note = var.load_balancer_internal ? "Access requires VPN connection or bastion host" : "Accessible from internet"
-    security = "No SSL certificate - HTTP only (add custom certificate if needed)"
+    security = "Self-signed certificate - You will see SSL warnings (this is expected)"
+    bypass_warning = "Click 'Advanced' and 'Proceed' to bypass SSL warning in browser"
   }
 }
 
@@ -62,13 +68,13 @@ output "subnet_ids" {
 output "deployment_summary" {
   description = "Summary of the Superblocks deployment"
   value = {
-    agent_url = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
+    agent_url = "https://${module.superblocks.lb_dns_name}"
     load_balancer_type = var.load_balancer_internal ? "Internal (VPC only)" : "Public (Internet accessible)"
     vpc_id = module.superblocks.vpc_id
     cluster_name = "${var.project_name}-cluster"
     service_name = "${var.project_name}-agent"
-    agent_status = "Deployed without Route53/SSL - Simple HTTP access"
-    next_steps = "Configure agent in Superblocks dashboard using the agent_url"
+    agent_status = "Deployed with self-signed certificate (SSL warnings expected)"
+    next_steps = "1. Access URL and bypass SSL warning\n2. Configure agent in Superblocks dashboard using the agent_url"
   }
 }
 

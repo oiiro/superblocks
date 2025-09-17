@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
@@ -28,13 +32,50 @@ data "terraform_remote_state" "vpc" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Simplified Superblocks Terraform Module - No Route53
+# Create a self-signed certificate for the ALB (workaround for HTTPS requirement)
+resource "tls_private_key" "superblocks" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "superblocks" {
+  private_key_pem = tls_private_key.superblocks.private_key_pem
+
+  subject {
+    common_name  = "superblocks.local"
+    organization = "Superblocks"
+  }
+
+  validity_period_hours = 8760  # 1 year
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+  ]
+}
+
+resource "aws_acm_certificate" "superblocks" {
+  private_key      = tls_private_key.superblocks.private_key_pem
+  certificate_body = tls_self_signed_cert.superblocks.cert_pem
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-self-signed"
+    Type = "self-signed-certificate"
+  })
+}
+
+# Simplified Superblocks Terraform Module
 module "superblocks" {
   source  = "superblocksteam/superblocks/aws"
   version = "~> 1.0"
 
   # Core Configuration
   superblocks_agent_key = var.superblocks_agent_key
+  
+  # Provide dummy domain to avoid HTTPS listener issues
+  domain    = "superblocks.local"
+  subdomain = "agent"
 
   # Network Configuration - Use existing VPC
   create_vpc     = false
@@ -46,9 +87,10 @@ module "superblocks" {
   create_lb   = true
   lb_internal = var.load_balancer_internal  # Configurable internal/external
 
-  # DNS and Certificate Configuration - DISABLED
+  # DNS and Certificate Configuration
   create_dns   = false  # No Route53 integration
-  create_certs = false  # No ACM certificates
+  create_certs = false  # Use our self-signed certificate
+  certificate_arn = aws_acm_certificate.superblocks.arn  # Provide self-signed cert
 
   # Container Configuration
   container_cpu           = var.cpu_units
