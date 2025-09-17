@@ -51,7 +51,7 @@ container_image = ""  # Will use default from module
 
 # Load Balancer Configuration
 load_balancer_type     = "application"
-load_balancer_internal = true  # Internal load balancer for private agent
+load_balancer_internal = false  # Public load balancer for easy access (change to true for internal)
 health_check_path      = "/health"
 health_check_port      = "traffic-port"
 

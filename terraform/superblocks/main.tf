@@ -28,40 +28,27 @@ data "terraform_remote_state" "vpc" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Route53 Hosted Zone for superblocks.oiiro.com
-resource "aws_route53_zone" "superblocks" {
-  name = var.domain
-
-  tags = merge(var.tags, {
-    Name = "${var.project_name}-hosted-zone"
-    Type = "route53-hosted-zone"
-  })
-}
-
-# Official Superblocks Terraform Module
+# Simplified Superblocks Terraform Module - No Route53
 module "superblocks" {
   source  = "superblocksteam/superblocks/aws"
   version = "~> 1.0"
 
   # Core Configuration
   superblocks_agent_key = var.superblocks_agent_key
-  domain               = var.domain
-  subdomain            = var.subdomain
 
   # Network Configuration - Use existing VPC
   create_vpc     = false
   vpc_id         = data.terraform_remote_state.vpc.outputs.vpc_id
-  lb_subnet_ids  = data.terraform_remote_state.vpc.outputs.private_subnet_ids  # Private ALB
+  lb_subnet_ids  = data.terraform_remote_state.vpc.outputs.public_subnet_ids   # Public ALB for easier access
   ecs_subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnet_ids
 
-  # Load Balancer Configuration - Private Agent
+  # Load Balancer Configuration
   create_lb   = true
-  lb_internal = true  # Internal load balancer for private agent
+  lb_internal = var.load_balancer_internal  # Configurable internal/external
 
-  # DNS and Certificate Configuration
-  create_dns   = true
-  create_certs = true
-  private_zone = false  # Public hosted zone for delegation
+  # DNS and Certificate Configuration - DISABLED
+  create_dns   = false  # No Route53 integration
+  create_certs = false  # No ACM certificates
 
   # Container Configuration
   container_cpu           = var.cpu_units

@@ -1,25 +1,14 @@
-# Outputs for Superblocks Private Agent Deployment
-
-# Hosted Zone Information (for DNS delegation)
-output "hosted_zone_id" {
-  description = "Route53 hosted zone ID for superblocks.oiiro.com"
-  value       = aws_route53_zone.superblocks.zone_id
-}
-
-output "hosted_zone_name_servers" {
-  description = "Name servers for DNS delegation in parent zone"
-  value       = aws_route53_zone.superblocks.name_servers
-}
+# Outputs for Simplified Superblocks Deployment
 
 # Agent Access Information
 output "agent_url" {
-  description = "URL to access the Superblocks agent"
-  value       = module.superblocks.agent_host_url
+  description = "Load balancer URL to access the Superblocks agent"
+  value       = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
 }
 
-output "agent_internal_url" {
-  description = "Internal load balancer URL for agent access"
-  value       = "https://${module.superblocks.lb_dns_name}"
+output "load_balancer_dns_name" {
+  description = "Load balancer DNS name (use this to access the agent)"
+  value       = module.superblocks.lb_dns_name
 }
 
 # Infrastructure Details
@@ -28,9 +17,14 @@ output "vpc_id" {
   value       = module.superblocks.vpc_id
 }
 
-output "load_balancer_dns_name" {
-  description = "Load balancer DNS name"
-  value       = module.superblocks.lb_dns_name
+output "cluster_name" {
+  description = "ECS cluster name"
+  value       = "${var.project_name}-cluster"
+}
+
+output "service_name" {
+  description = "ECS service name"
+  value       = "${var.project_name}-agent"
 }
 
 # Security Groups
@@ -44,16 +38,14 @@ output "ecs_security_group_ids" {
   value       = module.superblocks.ecs_security_group_ids
 }
 
-# DNS Delegation Instructions
-output "dns_delegation_instructions" {
-  description = "Instructions for configuring DNS delegation in parent zone"
+# Access Instructions
+output "access_instructions" {
+  description = "How to access the Superblocks agent"
   value = {
-    action = "Add NS record in oiiro.com hosted zone (shared services account)"
-    record_name = var.domain
-    record_type = "NS"
-    record_values = aws_route53_zone.superblocks.name_servers
-    parent_zone = "oiiro.com"
-    message = "Run this in shared services account: aws route53 change-resource-record-sets --hosted-zone-id <oiiro.com-zone-id> --change-batch '...' "
+    method = var.load_balancer_internal ? "Internal VPC access only" : "Public internet access"
+    url = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
+    note = var.load_balancer_internal ? "Access requires VPN connection or bastion host" : "Accessible from internet"
+    security = "No SSL certificate - HTTP only (add custom certificate if needed)"
   }
 }
 
@@ -70,12 +62,13 @@ output "subnet_ids" {
 output "deployment_summary" {
   description = "Summary of the Superblocks deployment"
   value = {
-    agent_url = module.superblocks.agent_host_url
-    internal_lb_url = "https://${module.superblocks.lb_dns_name}"
-    hosted_zone_id = aws_route53_zone.superblocks.zone_id
-    dns_delegation_required = "Add NS records in oiiro.com zone: ${join(", ", aws_route53_zone.superblocks.name_servers)}"
+    agent_url = var.load_balancer_internal ? "http://${module.superblocks.lb_dns_name}" : "http://${module.superblocks.lb_dns_name}"
+    load_balancer_type = var.load_balancer_internal ? "Internal (VPC only)" : "Public (Internet accessible)"
     vpc_id = module.superblocks.vpc_id
-    agent_status = "Deployed as private agent with internal load balancer"
+    cluster_name = "${var.project_name}-cluster"
+    service_name = "${var.project_name}-agent"
+    agent_status = "Deployed without Route53/SSL - Simple HTTP access"
+    next_steps = "Configure agent in Superblocks dashboard using the agent_url"
   }
 }
 

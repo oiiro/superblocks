@@ -1,16 +1,23 @@
-# Superblocks Deployment on AWS
+# Simplified Superblocks Deployment on AWS
 
-Terraform infrastructure for deploying Superblocks application on AWS using ECS Fargate.
+Terraform infrastructure for deploying Superblocks agent on AWS using ECS Fargate with minimal complexity.
 
 ## Overview
 
-This repository provides a complete, isolated infrastructure stack for deploying Superblocks on AWS. It includes:
+This repository provides a **simplified** infrastructure stack for deploying Superblocks on AWS:
 
+✅ **Simple Setup:**
 - VPC with public/private subnets across multiple availability zones
-- ECS Fargate cluster for running Superblocks containers
-- Application Load Balancer with SSL/TLS support
+- ECS Fargate cluster for running Superblocks containers  
+- Application Load Balancer (HTTP access)
 - Auto-scaling, monitoring, and logging
 - Secure secrets management with AWS Systems Manager
+
+❌ **Removed Complexities:**
+- No Route53 DNS management
+- No SSL certificate setup
+- No cross-account configurations
+- No custom domain requirements
 
 ## Quick Start
 
@@ -29,27 +36,35 @@ This repository provides a complete, isolated infrastructure stack for deploying
    cd superblocks
    ```
 
-2. **Configure environment**
+2. **Get Superblocks agent key**
+   - Go to https://app.superblocks.com → Settings → On-Premise Agent
+   - Create new agent and copy the key
+
+3. **Configure environment**
    ```bash
    # Edit environment configuration
    vi terraform/environments/superblocks.tfvars
-   # Add your Superblocks agent key
+   # Replace: superblocks_agent_key = "sb_agent_your-actual-key"
    ```
 
-3. **Deploy infrastructure**
+4. **Deploy infrastructure**
    ```bash
    ./scripts/deploy.sh deploy superblocks
    ```
 
-4. **Access application**
-   - The deployment script will output the application URL
-   - Default: `https://<load-balancer-dns>`
-   - Custom domain: `https://superblocks.yourdomain.com`
+5. **Access agent**
+   - Access via: `http://<load-balancer-dns>`
+   - Add this URL to your Superblocks dashboard
 
 ## Documentation
 
-- [Setup Guide](docs/SETUP_GUIDE.md) - Complete deployment walkthrough
+**Quick Start:**
+- [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md) - Simplified deployment walkthrough
+
+**Advanced (Optional):**
+- [Setup Guide](docs/SETUP_GUIDE.md) - Complete deployment with Route53
 - [AWS Account Setup](docs/AWS_ACCOUNT_SETUP.md) - Prerequisites and AWS configuration
+- [Step-by-Step Deployment](docs/STEP_BY_STEP_DEPLOYMENT.md) - Detailed sequential guide
 
 ## Project Structure
 
@@ -72,11 +87,12 @@ The project supports multiple environments through `.tfvars` files:
 
 ## Key Features
 
+- **Simplified Setup**: No DNS or SSL complexity
 - **Modular Design**: Separate VPC and application modules
 - **Auto-scaling**: Dynamic capacity based on CPU utilization
 - **Security**: Private subnets, security groups, encrypted secrets
 - **Monitoring**: CloudWatch logs, metrics, and alarms
-- **SSL/TLS**: Automatic certificate management
+- **HTTP Access**: Direct load balancer access
 - **Cost Optimization**: Configurable instance sizes and scaling
 
 ## Operations
@@ -101,9 +117,9 @@ The project supports multiple environments through `.tfvars` files:
 
 - Agent keys stored in AWS Systems Manager Parameter Store
 - Network isolation with VPC and security groups
-- SSL/TLS encryption for all traffic
+- HTTP traffic (add SSL later if needed)
 - IAM roles with least privilege principle
-- Optional IP whitelisting for load balancer
+- Configurable internal/external load balancer
 
 ## Cost Management
 
@@ -111,6 +127,7 @@ Default configuration is optimized for development/testing:
 - 2 vCPU, 4GB RAM per container
 - Auto-scaling between 1-5 instances
 - NAT gateway for private subnet internet access
+- Public load balancer by default (change to internal for security)
 
 For production, adjust resources in environment configuration.
 
@@ -121,8 +138,9 @@ Common issues and solutions:
 1. **Agent Key Issues**: Verify key format (starts with `sb_agent_`)
 2. **Deployment Failures**: Check AWS credentials and permissions
 3. **Health Check Failures**: Verify security groups and target groups
+4. **HTTP Access**: No HTTPS - use `http://` not `https://`
 
-For detailed troubleshooting, see [Setup Guide](docs/SETUP_GUIDE.md#troubleshooting).
+For detailed troubleshooting, see [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md#troubleshooting).
 
 ## Support
 

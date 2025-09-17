@@ -80,10 +80,11 @@ validate_environment() {
         exit 1
     fi
     
-    # Check if agent key is set
-    if grep -q "your-superblocks-agent-key-here" "$env_file"; then
+    # Check if agent key is set  
+    if grep -q "sb_agent_your-actual-key-here" "$env_file"; then
         log_error "Please update the superblocks_agent_key in $env_file"
-        log_info "Get your agent key from the Superblocks On-Premise Agent Setup Wizard"
+        log_info "Get your agent key from: https://app.superblocks.com -> Settings -> On-Premise Agent"
+        log_info "The key should start with 'sb_agent_'"
         exit 1
     fi
     
@@ -137,9 +138,14 @@ deploy_superblocks() {
     # Display deployment summary
     echo ""
     log_success "=== DEPLOYMENT SUMMARY ==="
-    echo -e "${GREEN}Application URL:${NC} $APPLICATION_URL"
-    echo -e "${GREEN}Load Balancer URL:${NC} $LB_URL"
+    echo -e "${GREEN}Agent Access URL:${NC} http://$LB_URL"
+    echo -e "${GREEN}Load Balancer DNS:${NC} $LB_URL"
     echo -e "${GREEN}CloudWatch Logs:${NC} $LOG_GROUP"
+    echo ""
+    log_info "Next Steps:"
+    echo "  1. Test agent: curl http://$LB_URL/health"
+    echo "  2. Add agent to Superblocks dashboard: http://$LB_URL"
+    echo "  3. Note: This is HTTP only (no SSL certificate)"
     echo ""
 }
 
