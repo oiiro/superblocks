@@ -114,62 +114,8 @@ module "superblocks" {
   tags = var.tags
 }
 
-# Monitoring and Alerting (Optional)
-resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  count = var.enable_cloudwatch_alarms ? 1 : 0
+# Note: Monitoring is handled by the Superblocks module
+# CloudWatch alarms can be added separately if needed
 
-  alarm_name          = "${var.project_name}-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = var.cpu_alarm_threshold
-  alarm_description   = "Superblocks ECS CPU utilization high"
-  alarm_actions       = var.alarm_actions
-
-  dimensions = {
-    ServiceName = "${var.project_name}-agent"  # Official module naming
-    ClusterName = "${var.project_name}-cluster"
-  }
-
-  tags = var.tags
-}
-
-resource "aws_cloudwatch_metric_alarm" "memory_high" {
-  count = var.enable_cloudwatch_alarms ? 1 : 0
-
-  alarm_name          = "${var.project_name}-memory-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "MemoryUtilization"
-  namespace           = "AWS/ECS"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = var.memory_alarm_threshold
-  alarm_description   = "Superblocks ECS memory utilization high"
-  alarm_actions       = var.alarm_actions
-
-  dimensions = {
-    ServiceName = "${var.project_name}-agent"
-    ClusterName = "${var.project_name}-cluster"
-  }
-
-  tags = var.tags
-}
-
-# Systems Manager Parameter for Agent Key (encrypted)
-resource "aws_ssm_parameter" "agent_key" {
-  count = var.store_agent_key_in_ssm ? 1 : 0
-
-  name  = "/${var.project_name}/superblocks/agent-key"
-  type  = "SecureString"
-  value = var.superblocks_agent_key
-
-  tags = merge(var.tags, {
-    Name      = "${var.project_name}-agent-key"
-    Type      = "ssm-parameter"
-    Sensitive = "true"
-  })
-}
+# Note: Agent key is passed directly to the module
+# SSM parameter storage can be added if needed
