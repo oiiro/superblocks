@@ -1,172 +1,149 @@
-# Simplified Superblocks Deployment on AWS
+# Superblocks on AWS - Simple Deployment
 
-Terraform infrastructure for deploying Superblocks agent on AWS using ECS Fargate with minimal complexity.
-
-## Overview
-
-This repository provides a **simplified** infrastructure stack for deploying Superblocks on AWS:
-
-✅ **Simple Setup:**
-- VPC with public/private subnets across multiple availability zones
-- ECS Fargate cluster for running Superblocks containers  
-- Application Load Balancer (HTTP access)
-- Auto-scaling, monitoring, and logging
-- Secure secrets management with AWS Systems Manager
-
-❌ **Removed Complexities:**
-- No Route53 DNS management
-- No SSL certificate setup
-- No cross-account configurations
-- No custom domain requirements
-
-## Choose Your Implementation
-
-We provide **4 different implementations** - see [Implementation Comparison](docs/IMPLEMENTATION_COMPARISON.md) for details:
-
-1. **superblocks-simple** - HTTP only, no SSL (simplest)
-2. **superblocks-simple-https** - HTTPS with self-signed cert (recommended)
-3. **superblocks** - Official module with bugs (not recommended)
-4. **apply-workaround.sh** - Script to fix official module
+Deploy Superblocks agent on AWS using Terraform with ECS Fargate.
 
 ## Quick Start
 
-### Prerequisites
+### 1. Get Your Agent Key
+1. Go to https://app.superblocks.com
+2. Settings → On-Premise Agent → Create New Agent
+3. Copy the agent key (starts with `sb_agent_`)
 
-1. AWS Account with appropriate permissions
-2. Terraform >= 1.0
-3. AWS CLI configured
-4. Superblocks agent key
+### 2. Configure
+```bash
+# Edit the agent key
+vi terraform/environments/superblocks.tfvars
 
-### Installation
+# Replace this line:
+superblocks_agent_key = "sb_agent_your-actual-key-here"
+# With your actual key:
+superblocks_agent_key = "sb_agent_xxxxxxxxxxxxx"
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/oiiro/superblocks.git
-   cd superblocks
-   ```
+### 3. Deploy
 
-2. **Get Superblocks agent key**
-   - Go to https://app.superblocks.com → Settings → On-Premise Agent
-   - Create new agent and copy the key
+**HTTP Version (Simple):**
+```bash
+./deploy-http.sh
+```
 
-3. **Configure environment**
-   ```bash
-   # Edit environment configuration
-   vi terraform/environments/superblocks.tfvars
-   # Replace: superblocks_agent_key = "sb_agent_your-actual-key"
-   ```
+**HTTPS Version (With SSL):**
+```bash
+./deploy-https.sh
+```
 
-4. **Deploy infrastructure**
-   ```bash
-   ./scripts/deploy.sh deploy superblocks
-   ```
+### 4. Access
+The script will output your agent URL. Add this URL to your Superblocks dashboard.
 
-5. **Access agent**
-   - Access via: `http://<load-balancer-dns>`
-   - Add this URL to your Superblocks dashboard
+## Deployment Options
 
-## Documentation
+| Version | Command | Protocol | Use Case |
+|---------|---------|----------|----------|
+| **HTTP** | `./deploy-http.sh` | HTTP only | Development, testing |
+| **HTTPS** | `./deploy-https.sh` | HTTPS (self-signed) | Production, security |
 
-**Quick Start:**
-- [Implementation Comparison](docs/IMPLEMENTATION_COMPARISON.md) - **START HERE** - Compare all 4 deployment options
-- [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md) - HTTP-only deployment walkthrough
+## Architecture
 
-**Troubleshooting:**
-- [Module Error Workaround](docs/MODULE_ERROR_WORKAROUND.md) - Fix for official module bugs
-- [HTTPS Workaround](docs/HTTPS_WORKAROUND.md) - SSL certificate solutions
+Both versions deploy:
+- **VPC**: Public/private subnets, NAT gateways
+- **ECS**: Fargate cluster with Superblocks agent
+- **ALB**: Application Load Balancer
+- **IAM**: Execution and task roles
+- **CloudWatch**: Logging and monitoring
 
-**Advanced (Optional):**
-- [Setup Guide](docs/SETUP_GUIDE.md) - Complete deployment with Route53
-- [AWS Account Setup](docs/AWS_ACCOUNT_SETUP.md) - Prerequisites and AWS configuration
-- [Step-by-Step Deployment](docs/STEP_BY_STEP_DEPLOYMENT.md) - Detailed sequential guide
+**The only difference:** HTTP vs HTTPS listener configuration.
+
+## Management
+
+### Check Status
+```bash
+cd terraform/superblocks-simple  # or superblocks-simple-https
+terraform output
+```
+
+### View Logs
+```bash
+aws logs tail /ecs/superblocks --follow
+```
+
+### Cleanup Everything
+```bash
+./cleanup.sh
+```
 
 ## Project Structure
 
 ```
 .
-├── docs/                    # Documentation
-├── terraform/              # Infrastructure as Code
-│   ├── vpc/               # VPC module
-│   ├── superblocks/       # Superblocks deployment
-│   └── environments/      # Environment configurations
-└── scripts/               # Automation scripts
+├── deploy-http.sh              # Deploy HTTP version
+├── deploy-https.sh             # Deploy HTTPS version  
+├── cleanup.sh                  # Remove everything
+├── terraform/
+│   ├── modules/
+│   │   └── superblocks_agent/  # Reusable module
+│   ├── vpc/                    # VPC infrastructure
+│   ├── superblocks-simple/     # HTTP deployment
+│   ├── superblocks-simple-https/ # HTTPS deployment
+│   └── environments/
+│       └── superblocks.tfvars  # Configuration
+└── docs/
+    ├── SIMPLE_DEPLOYMENT.md    # Detailed guide
+    └── MODULE_STRUCTURE.md     # Technical details
 ```
 
-## Environment Configuration
+## Cost Optimization
 
-The project supports multiple environments through `.tfvars` files:
+Default configuration:
+- 1 vCPU, 2GB RAM
+- Auto-scaling 1-3 instances
+- 7-day log retention
 
-- `superblocks.tfvars` - Default isolated deployment
-- `production.tfvars.example` - Production configuration template
-
-## Key Features
-
-- **Simplified Setup**: No DNS or SSL complexity
-- **Modular Design**: Separate VPC and application modules
-- **Auto-scaling**: Dynamic capacity based on CPU utilization
-- **Security**: Private subnets, security groups, encrypted secrets
-- **Monitoring**: CloudWatch logs, metrics, and alarms
-- **HTTP Access**: Direct load balancer access
-- **Cost Optimization**: Configurable instance sizes and scaling
-
-## Operations
-
-### Check Status
-```bash
-./scripts/deploy.sh status
+To reduce costs, edit `terraform/environments/superblocks.tfvars`:
+```hcl
+cpu_units = 512      # Reduce CPU
+memory_units = 1024  # Reduce memory
+desired_count = 1    # Single instance
+max_capacity = 1     # No auto-scaling
 ```
-
-### Update Deployment
-```bash
-# Update configuration in tfvars
-./scripts/deploy.sh deploy superblocks
-```
-
-### Destroy Infrastructure
-```bash
-./scripts/deploy.sh destroy superblocks
-```
-
-## Security Considerations
-
-- Agent keys stored in AWS Systems Manager Parameter Store
-- Network isolation with VPC and security groups
-- HTTP traffic (add SSL later if needed)
-- IAM roles with least privilege principle
-- Configurable internal/external load balancer
-
-## Cost Management
-
-Default configuration is optimized for development/testing:
-- 2 vCPU, 4GB RAM per container
-- Auto-scaling between 1-5 instances
-- NAT gateway for private subnet internet access
-- Public load balancer by default (change to internal for security)
-
-For production, adjust resources in environment configuration.
 
 ## Troubleshooting
 
-Common issues and solutions:
+### Agent Not Connecting
+1. Check ECS tasks: `aws ecs describe-services --cluster superblocks-cluster --services superblocks-agent`
+2. Check logs: `aws logs tail /ecs/superblocks --follow`
+3. Verify agent key is correct
 
-1. **Agent Key Issues**: Verify key format (starts with `sb_agent_`)
-2. **Deployment Failures**: Check AWS credentials and permissions
-3. **Health Check Failures**: Verify security groups and target groups
-4. **HTTP Access**: No HTTPS - use `http://` not `https://`
+### Deployment Fails
+1. Check AWS credentials: `aws sts get-caller-identity`
+2. Verify agent key format (starts with `sb_agent_`)
+3. Ensure no existing resources conflict
 
-For detailed troubleshooting, see [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md#troubleshooting).
+### SSL Warnings (HTTPS version)
+This is expected with self-signed certificates. Click "Advanced" → "Proceed" in your browser.
+
+## Advanced Usage
+
+### Switch Between Versions
+```bash
+# Destroy current deployment
+./cleanup.sh
+
+# Deploy different version
+./deploy-https.sh  # or ./deploy-http.sh
+```
+
+### Use Real SSL Certificate
+Edit `terraform/environments/superblocks.tfvars`:
+```hcl
+certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id"
+```
 
 ## Support
 
-For issues or questions:
-- Review documentation in `/docs`
-- Check deployment logs: `terraform/vpc/` and `terraform/superblocks/`
-- Verify AWS resources in console
+- **Documentation**: See `docs/` folder
+- **Issues**: Check CloudWatch logs and ECS service status
+- **Costs**: Monitor AWS billing dashboard
 
 ## License
 
-Internal OIIRO project - Not for external distribution
-
-## Acknowledgments
-
-Built using [Superblocks Terraform Modules](https://github.com/superblocksteam/terraform-aws-superblocks)
+Internal OIIRO project
