@@ -32,8 +32,9 @@ module "superblocks_agent" {
   domain    = var.domain
   subdomain = var.subdomain
 
-  # Superblocks Agent Key (Required)
+  # Superblocks Agent Key Configuration
   superblocks_agent_key = var.superblocks_agent_key
+  agent_key_secret_arn  = var.agent_key_secret_arn
 
   # SSL Configuration (Always use HTTPS for production)
   enable_ssl      = true

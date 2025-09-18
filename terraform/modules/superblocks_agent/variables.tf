@@ -41,9 +41,16 @@ variable "subdomain" {
 
 # Superblocks Configuration
 variable "superblocks_agent_key" {
-  description = "Superblocks agent key for authentication"
+  description = "Superblocks agent key for authentication (only if not using secrets_manager)"
   type        = string
+  default     = ""
   sensitive   = true
+}
+
+variable "agent_key_secret_arn" {
+  description = "ARN of AWS Secrets Manager secret containing the agent key"
+  type        = string
+  default     = ""
 }
 
 variable "superblocks_agent_tags" {

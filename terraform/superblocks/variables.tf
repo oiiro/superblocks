@@ -33,11 +33,18 @@ variable "subdomain" {
   type        = string
 }
 
-# Superblocks Configuration (Required)
+# Superblocks Configuration - Choose ONE approach
 variable "superblocks_agent_key" {
-  description = "Superblocks agent key from dashboard"
+  description = "Superblocks agent key from dashboard (if not using Secrets Manager)"
   type        = string
+  default     = ""
   sensitive   = true
+}
+
+variable "agent_key_secret_arn" {
+  description = "ARN of AWS Secrets Manager secret containing the agent key (recommended)"
+  type        = string
+  default     = ""
 }
 
 # Optional - SSL Certificate

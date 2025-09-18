@@ -19,6 +19,15 @@ locals {
   # Determine protocol based on SSL configuration
   protocol = var.enable_ssl ? "https" : "http"
   port     = var.enable_ssl ? 443 : 80
+
+  # Determine if using Secrets Manager
+  use_secrets_manager = var.agent_key_secret_arn != ""
+}
+
+# Data source for Secrets Manager secret (if using)
+data "aws_secretsmanager_secret" "agent_key" {
+  count = local.use_secrets_manager ? 1 : 0
+  arn   = var.agent_key_secret_arn
 }
 
 # Self-signed certificate (only if SSL enabled and no certificate provided)
@@ -39,7 +48,7 @@ resource "tls_self_signed_cert" "superblocks" {
     organization = "Superblocks"
   }
 
-  validity_period_hours = 8760  # 1 year
+  validity_period_hours = 8760 # 1 year
 
   allowed_uses = [
     "key_encipherment",
@@ -67,7 +76,7 @@ resource "aws_acm_certificate" "superblocks" {
 # ECS Cluster
 resource "aws_ecs_cluster" "superblocks" {
   name = "${var.name_prefix}-cluster"
-  
+
   setting {
     name  = "containerInsights"
     value = var.enable_container_insights ? "enabled" : "disabled"
@@ -121,6 +130,26 @@ resource "aws_iam_role" "ecs_task" {
   tags = var.tags
 }
 
+# IAM Policy for Secrets Manager access (if using secrets)
+resource "aws_iam_role_policy" "ecs_task_secrets" {
+  count = local.use_secrets_manager ? 1 : 0
+  name  = "${var.name_prefix}-secrets-policy"
+  role  = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = var.agent_key_secret_arn
+      }
+    ]
+  })
+}
+
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "superblocks" {
   name              = "/ecs/${var.name_prefix}"
@@ -135,10 +164,10 @@ resource "aws_lb" "superblocks" {
   internal           = var.load_balancer_internal
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets           = var.lb_subnet_ids
+  subnets            = var.lb_subnet_ids
 
   enable_deletion_protection = false
-  enable_http2              = true
+  enable_http2               = true
 
   tags = var.tags
 }
@@ -250,7 +279,7 @@ resource "aws_lb_target_group" "grpc" {
     enabled             = true
     healthy_threshold   = 2
     interval            = 30
-    matcher             = "0-99"  # GRPC status codes
+    matcher             = "0-99" # GRPC status codes
     port                = 8081
     protocol            = "HTTP"
     timeout             = 5
@@ -308,14 +337,14 @@ resource "aws_lb_listener" "https" {
 
 # HTTP Listener Rule for gRPC - DISABLED (GRPC requires HTTPS/TLS)
 resource "aws_lb_listener_rule" "grpc_http" {
-  count = 0  # Always disabled - GRPC cannot work with HTTP listeners
+  count = 0 # Always disabled - GRPC cannot work with HTTP listeners
 
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.http.arn  # Placeholder - never used
+    target_group_arn = aws_lb_target_group.http.arn # Placeholder - never used
   }
 
   condition {
@@ -347,18 +376,18 @@ resource "aws_lb_listener_rule" "grpc_https" {
 # ECS Task Definition
 resource "aws_ecs_task_definition" "superblocks" {
   family                   = "${var.name_prefix}-agent"
-  network_mode            = "awsvpc"
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                     = var.cpu_units
-  memory                  = var.memory_units
-  execution_role_arn      = aws_iam_role.ecs_execution.arn
-  task_role_arn           = aws_iam_role.ecs_task.arn
+  cpu                      = var.cpu_units
+  memory                   = var.memory_units
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
 
   container_definitions = jsonencode([
     {
       name  = "superblocks-agent"
       image = var.container_image
-      
+
       portMappings = [
         {
           containerPort = var.container_port
@@ -371,10 +400,6 @@ resource "aws_ecs_task_definition" "superblocks" {
       ]
 
       environment = concat([
-        {
-          name  = "SUPERBLOCKS_AGENT_KEY"
-          value = var.superblocks_agent_key
-        },
         {
           name  = "SUPERBLOCKS_AGENT_HOST_URL"
           value = var.domain != "" && var.subdomain != "" ? "${local.protocol}://${var.subdomain}.${var.domain}" : "${local.protocol}://${aws_lb.superblocks.dns_name}"
@@ -399,12 +424,21 @@ resource "aws_ecs_task_definition" "superblocks" {
           name  = "SUPERBLOCKS_WORKER_LOCAL_ENABLED"
           value = "true"
         }
-      ], [
+        ], local.use_secrets_manager ? [] : [{
+          name  = "SUPERBLOCKS_AGENT_KEY"
+          value = var.superblocks_agent_key
+        }], [
         for k, v in var.environment_variables : {
           name  = k
           value = v
         }
       ])
+
+      # Use Secrets Manager for agent key if configured
+      secrets = local.use_secrets_manager ? [{
+        name      = "SUPERBLOCKS_AGENT_KEY"
+        valueFrom = var.agent_key_secret_arn
+      }] : []
 
       logConfiguration = {
         logDriver = "awslogs"
