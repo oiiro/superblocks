@@ -1,48 +1,70 @@
 # Outputs for Simple HTTPS Superblocks Deployment
 
+# Primary outputs
 output "agent_url" {
   description = "URL to access the Superblocks agent (HTTPS)"
-  value       = "https://${aws_lb.superblocks.dns_name}"
+  value       = module.superblocks_agent.agent_url
 }
 
 output "load_balancer_dns_name" {
   description = "DNS name of the load balancer"
-  value       = aws_lb.superblocks.dns_name
+  value       = module.superblocks_agent.load_balancer_dns_name
 }
 
+# SSL Certificate information
 output "certificate_arn" {
-  description = "ARN of the self-signed certificate"
-  value       = aws_acm_certificate.superblocks.arn
+  description = "ARN of the SSL certificate"
+  value       = module.superblocks_agent.certificate_arn
 }
 
 output "certificate_warning" {
   description = "SSL certificate warning"
-  value       = "WARNING: Using self-signed certificate. You will see SSL warnings in your browser. Click 'Advanced' and 'Proceed' to bypass."
+  value       = module.superblocks_agent.certificate_warning
 }
 
+# Infrastructure details
 output "cluster_name" {
   description = "Name of the ECS cluster"
-  value       = aws_ecs_cluster.superblocks.name
+  value       = module.superblocks_agent.cluster_name
 }
 
 output "service_name" {
   description = "Name of the ECS service"
-  value       = aws_ecs_service.superblocks.name
+  value       = module.superblocks_agent.service_name
 }
 
 output "vpc_id" {
   description = "VPC ID"
-  value       = data.terraform_remote_state.vpc.outputs.vpc_id
+  value       = module.superblocks_agent.vpc_id
 }
 
+# Security groups
+output "lb_security_group_id" {
+  description = "Load balancer security group ID"
+  value       = module.superblocks_agent.lb_security_group_id
+}
+
+output "ecs_security_group_id" {
+  description = "ECS security group ID"
+  value       = module.superblocks_agent.ecs_security_group_id
+}
+
+# Monitoring
+output "log_group_name" {
+  description = "CloudWatch log group name"
+  value       = module.superblocks_agent.log_group_name
+}
+
+# Access instructions
 output "access_instructions" {
   description = "How to access Superblocks"
   value = {
-    url        = "https://${aws_lb.superblocks.dns_name}"
-    method     = var.load_balancer_internal ? "VPC access only" : "Public internet access"
-    health     = "https://${aws_lb.superblocks.dns_name}/health"
-    ssl_note   = "Self-signed certificate - bypass SSL warnings in browser"
-    curl_test  = "curl -k https://${aws_lb.superblocks.dns_name}/health"
-    dashboard  = "Add this URL to your Superblocks dashboard as the agent host"
+    url         = module.superblocks_agent.agent_url
+    method      = var.load_balancer_internal ? "VPC access only" : "Public internet access"
+    health      = "${module.superblocks_agent.agent_url}/health"
+    protocol    = "HTTPS with self-signed certificate"
+    ssl_warning = "You will see SSL warnings - click 'Advanced' and 'Proceed' to bypass"
+    dashboard   = "Add this URL to your Superblocks dashboard as the agent host"
+    curl_test   = "curl -k ${module.superblocks_agent.agent_url}/health"
   }
 }

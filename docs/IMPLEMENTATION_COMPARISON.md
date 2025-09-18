@@ -9,8 +9,8 @@ This project provides **FOUR** different implementations for deploying Superbloc
 | Implementation | Path | SSL/HTTPS | Module Used | Complexity | Status |
 |---------------|------|-----------|-------------|------------|--------|
 | **superblocks** | `/terraform/superblocks` | ✅ HTTPS (self-signed) | Official (buggy) | High | ⚠️ Has count error |
-| **superblocks-simple** | `/terraform/superblocks-simple` | ❌ HTTP only | None (direct) | Low | ✅ Works |
-| **superblocks-simple-https** | `/terraform/superblocks-simple-https` | ✅ HTTPS (self-signed) | None (direct) | Medium | ✅ Works |
+| **superblocks-simple** | `/terraform/superblocks-simple` | ❌ HTTP only | Custom (superblocks_agent) | Low | ✅ Works |
+| **superblocks-simple-https** | `/terraform/superblocks-simple-https` | ✅ HTTPS (self-signed) | Custom (superblocks_agent) | Medium | ✅ Works |
 | **apply-workaround** | `/scripts/apply-workaround.sh` | ✅ HTTPS (self-signed) | Official (staged) | Medium | ✅ Works |
 
 ## Detailed Comparison
@@ -34,16 +34,17 @@ This project provides **FOUR** different implementations for deploying Superbloc
 ### 2. Simple HTTP Implementation (`/terraform/superblocks-simple`)
 
 **Features:**
-- Direct resource creation (no module)
+- Uses custom `superblocks_agent` module
 - HTTP only on port 80
-- Simplest implementation
-- Full control over resources
+- Simplest SSL configuration (disabled)
+- Consistent module structure
 
 **Benefits:**
 - ✅ No SSL complexity
 - ✅ No certificate warnings
 - ✅ Works immediately
 - ✅ Easy to debug and modify
+- ✅ Reusable module architecture
 
 **Limitations:**
 - ❌ No HTTPS (security consideration)
@@ -58,16 +59,18 @@ This project provides **FOUR** different implementations for deploying Superbloc
 ### 3. Simple HTTPS Implementation (`/terraform/superblocks-simple-https`)
 
 **Features:**
-- Direct resource creation (no module)
+- Uses custom `superblocks_agent` module
 - HTTPS with self-signed certificate
 - HTTP to HTTPS redirect
 - Auto-scaling support
+- Consistent module structure
 
 **Benefits:**
 - ✅ HTTPS encryption
-- ✅ No module bugs
-- ✅ Full control
+- ✅ No official module bugs
+- ✅ Reusable module architecture
 - ✅ Works reliably
+- ✅ Easy to compare with HTTP version
 
 **Limitations:**
 - ⚠️ Self-signed cert warnings
@@ -77,7 +80,7 @@ This project provides **FOUR** different implementations for deploying Superbloc
 - When HTTPS is required
 - Production environments (replace cert later)
 - Security-conscious deployments
-- Don't want module dependencies
+- Want consistent module structure
 
 ### 4. Workaround Script (`/scripts/apply-workaround.sh`)
 
@@ -98,20 +101,40 @@ This project provides **FOUR** different implementations for deploying Superbloc
 - If you must use official module
 - Want module updates/support
 
+## Module Architecture
+
+### Custom Module Structure
+Both `superblocks-simple` and `superblocks-simple-https` now use the same `superblocks_agent` module:
+
+```hcl
+module "superblocks_agent" {
+  source = "../modules/superblocks_agent"
+  
+  # The only difference between implementations:
+  enable_ssl = false  # HTTP version
+  enable_ssl = true   # HTTPS version
+}
+```
+
+**Key Differences Between Implementations:**
+- **superblocks-simple**: `enable_ssl = false`
+- **superblocks-simple-https**: `enable_ssl = true`
+- **All other parameters**: Identical
+
 ## Resource Creation Comparison
 
-| Resource | Official Module | Simple | Simple-HTTPS |
-|----------|----------------|--------|--------------|
-| ECS Cluster | ✅ Auto | ✅ Manual | ✅ Manual |
-| ALB | ✅ Auto | ✅ Manual | ✅ Manual |
-| Target Groups | ✅ Auto | ✅ Manual | ✅ Manual |
-| SSL Certificate | ✅ Self-signed | ❌ None | ✅ Self-signed |
-| HTTPS Listener | ✅ Yes | ❌ No | ✅ Yes |
+| Resource | Official Module | Simple Module | Simple-HTTPS Module |
+|----------|----------------|---------------|---------------------|
+| ECS Cluster | ✅ Auto | ✅ Module | ✅ Module |
+| ALB | ✅ Auto | ✅ Module | ✅ Module |
+| Target Groups | ✅ Auto | ✅ Module | ✅ Module |
+| SSL Certificate | ✅ Self-signed | ❌ Disabled | ✅ Self-signed |
+| HTTPS Listener | ✅ Yes | ❌ Disabled | ✅ Yes |
 | HTTP Listener | ✅ Redirect | ✅ Forward | ✅ Redirect |
-| Security Groups | ✅ Auto | ✅ Manual | ✅ Manual |
-| IAM Roles | ✅ Auto | ✅ Manual | ✅ Manual |
-| Auto Scaling | ✅ Optional | ❌ No | ✅ Optional |
-| CloudWatch Logs | ✅ Auto | ✅ Manual | ✅ Manual |
+| Security Groups | ✅ Auto | ✅ Module | ✅ Module |
+| IAM Roles | ✅ Auto | ✅ Module | ✅ Module |
+| Auto Scaling | ✅ Optional | ✅ Optional | ✅ Optional |
+| CloudWatch Logs | ✅ Auto | ✅ Module | ✅ Module |
 
 ## ALB Reuse Considerations
 

@@ -1,15 +1,29 @@
-# Variables for Simple HTTPS Superblocks Deployment
+# Variables for Superblocks Agent Module
 
-variable "project_name" {
-  description = "Name of the project for resource naming"
+variable "name_prefix" {
+  description = "Prefix for resource names"
   type        = string
-  default     = "superblocks"
 }
 
 variable "aws_region" {
-  description = "AWS region for resource deployment"
+  description = "AWS region"
   type        = string
-  default     = "us-east-1"
+}
+
+# Network Configuration
+variable "vpc_id" {
+  description = "VPC ID where resources will be created"
+  type        = string
+}
+
+variable "lb_subnet_ids" {
+  description = "Subnet IDs for the load balancer"
+  type        = list(string)
+}
+
+variable "ecs_subnet_ids" {
+  description = "Subnet IDs for ECS tasks"
+  type        = list(string)
 }
 
 # Superblocks Configuration
@@ -29,6 +43,25 @@ variable "superblocks_agent_environment" {
   description = "Superblocks agent environment"
   type        = string
   default     = "*"
+}
+
+# SSL Configuration
+variable "enable_ssl" {
+  description = "Enable SSL/HTTPS"
+  type        = bool
+  default     = false
+}
+
+variable "certificate_arn" {
+  description = "ARN of existing SSL certificate (leave empty to create self-signed)"
+  type        = string
+  default     = ""
+}
+
+variable "ssl_policy" {
+  description = "SSL policy for the load balancer"
+  type        = string
+  default     = "ELBSecurityPolicy-TLS-1-2-2017-01"
 }
 
 # ECS Configuration
@@ -63,10 +96,22 @@ variable "memory_units" {
 }
 
 # Container Configuration
+variable "container_image" {
+  description = "Docker image for Superblocks container"
+  type        = string
+  default     = "ghcr.io/superblocksteam/agent:latest"
+}
+
 variable "container_port" {
   description = "Port for the container"
   type        = number
   default     = 8080
+}
+
+variable "environment_variables" {
+  description = "Additional environment variables for the container"
+  type        = map(string)
+  default     = {}
 }
 
 # Load Balancer Configuration
@@ -86,19 +131,6 @@ variable "alb_allowed_cidrs" {
   description = "Allowed CIDR blocks for ALB access"
   type        = list(string)
   default     = ["0.0.0.0/0"]
-}
-
-# SSL Configuration
-variable "certificate_arn" {
-  description = "ARN of existing SSL certificate (leave empty to create self-signed)"
-  type        = string
-  default     = ""
-}
-
-variable "ssl_policy" {
-  description = "SSL policy for the load balancer"
-  type        = string
-  default     = "ELBSecurityPolicy-TLS-1-2-2017-01"
 }
 
 # Logging
@@ -131,8 +163,5 @@ variable "target_cpu_utilization" {
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
-  default = {
-    Project   = "Superblocks"
-    ManagedBy = "terraform"
-  }
+  default     = {}
 }

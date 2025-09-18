@@ -1,36 +1,58 @@
-# Outputs for Simple Superblocks Deployment
+# Outputs for Simple Superblocks Deployment (HTTP)
 
+# Primary outputs
 output "agent_url" {
-  description = "URL to access the Superblocks agent"
-  value       = "http://${aws_lb.superblocks.dns_name}"
+  description = "URL to access the Superblocks agent (HTTP)"
+  value       = module.superblocks_agent.agent_url
 }
 
 output "load_balancer_dns_name" {
   description = "DNS name of the load balancer"
-  value       = aws_lb.superblocks.dns_name
+  value       = module.superblocks_agent.load_balancer_dns_name
 }
 
+# Infrastructure details
 output "cluster_name" {
   description = "Name of the ECS cluster"
-  value       = aws_ecs_cluster.superblocks.name
+  value       = module.superblocks_agent.cluster_name
 }
 
 output "service_name" {
   description = "Name of the ECS service"
-  value       = aws_ecs_service.superblocks.name
+  value       = module.superblocks_agent.service_name
 }
 
 output "vpc_id" {
   description = "VPC ID"
-  value       = data.terraform_remote_state.vpc.outputs.vpc_id
+  value       = module.superblocks_agent.vpc_id
 }
 
+# Security groups
+output "lb_security_group_id" {
+  description = "Load balancer security group ID"
+  value       = module.superblocks_agent.lb_security_group_id
+}
+
+output "ecs_security_group_id" {
+  description = "ECS security group ID"
+  value       = module.superblocks_agent.ecs_security_group_id
+}
+
+# Monitoring
+output "log_group_name" {
+  description = "CloudWatch log group name"
+  value       = module.superblocks_agent.log_group_name
+}
+
+# Access instructions
 output "access_instructions" {
   description = "How to access Superblocks"
   value = {
-    url    = "http://${aws_lb.superblocks.dns_name}"
-    method = var.load_balancer_internal ? "VPC access only" : "Public internet access"
-    health = "http://${aws_lb.superblocks.dns_name}/health"
-    note   = "Add this URL to your Superblocks dashboard as the agent host"
+    url        = module.superblocks_agent.agent_url
+    method     = var.load_balancer_internal ? "VPC access only" : "Public internet access"
+    health     = "${module.superblocks_agent.agent_url}/health"
+    protocol   = "HTTP only - no SSL encryption"
+    dashboard  = "Add this URL to your Superblocks dashboard as the agent host"
+    curl_test  = "curl ${module.superblocks_agent.agent_url}/health"
   }
 }
