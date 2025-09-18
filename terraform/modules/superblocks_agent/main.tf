@@ -235,8 +235,10 @@ resource "aws_lb_target_group" "http" {
   tags = var.tags
 }
 
-# Target Group for gRPC
+# Target Group for gRPC (only for HTTPS - GRPC requires TLS)
 resource "aws_lb_target_group" "grpc" {
+  count = var.enable_ssl ? 1 : 0
+
   name             = "${var.name_prefix}-tg-grpc"
   port             = 8081
   protocol         = "HTTP"
@@ -248,7 +250,7 @@ resource "aws_lb_target_group" "grpc" {
     enabled             = true
     healthy_threshold   = 2
     interval            = 30
-    matcher             = "0-99"
+    matcher             = "0-99"  # GRPC status codes
     port                = 8081
     protocol            = "HTTP"
     timeout             = 5
@@ -304,21 +306,21 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# HTTP Listener Rule for gRPC (on HTTP listener if no SSL, on HTTPS if SSL)
+# HTTP Listener Rule for gRPC - DISABLED (GRPC requires HTTPS/TLS)
 resource "aws_lb_listener_rule" "grpc_http" {
-  count = var.enable_ssl ? 0 : 1
+  count = 0  # Always disabled - GRPC cannot work with HTTP listeners
 
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.grpc.arn
+    target_group_arn = aws_lb_target_group.http.arn  # Placeholder - never used
   }
 
   condition {
     path_pattern {
-      values = ["/grpc/*"]
+      values = ["/grpc/*", "/_grpc/*"]
     }
   }
 }
@@ -332,12 +334,12 @@ resource "aws_lb_listener_rule" "grpc_https" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.grpc.arn
+    target_group_arn = aws_lb_target_group.grpc[0].arn
   }
 
   condition {
     path_pattern {
-      values = ["/grpc/*"]
+      values = ["/grpc/*", "/_grpc/*"]
     }
   }
 }
@@ -439,14 +441,20 @@ resource "aws_ecs_service" "superblocks" {
     container_port   = var.container_port
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.grpc.arn
-    container_name   = "superblocks-agent"
-    container_port   = 8081
+  # GRPC load balancer only when SSL is enabled
+  dynamic "load_balancer" {
+    for_each = var.enable_ssl ? [1] : []
+    content {
+      target_group_arn = aws_lb_target_group.grpc[0].arn
+      container_name   = "superblocks-agent"
+      container_port   = 8081
+    }
   }
 
   depends_on = [
     aws_lb_listener.http,
+    aws_lb_listener_rule.grpc_http,
+    aws_lb_listener_rule.grpc_https,
     aws_iam_role_policy_attachment.ecs_execution
   ]
 
