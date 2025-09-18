@@ -19,8 +19,8 @@ ecs_subnet_ids = [
 ]
 
 # Domain Configuration
-domain = "superblocks.oiiro.com"
-subdomain = "agent"
+domain = "wealthenhancement.com"
+subdomain = "superblocksdemo"
 
 # Superblocks Private Agent Configuration
 # IMPORTANT: Replace with your actual agent key from Superblocks dashboard
