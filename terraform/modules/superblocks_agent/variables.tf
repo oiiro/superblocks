@@ -5,7 +5,7 @@ variable "name_prefix" {
   type        = string
 }
 
-variable "aws_region" {
+variable "region" {
   description = "AWS region"
   type        = string
 }
@@ -24,6 +24,19 @@ variable "lb_subnet_ids" {
 variable "ecs_subnet_ids" {
   description = "Subnet IDs for ECS tasks"
   type        = list(string)
+}
+
+# Domain Configuration
+variable "domain" {
+  description = "Domain name for the agent"
+  type        = string
+  default     = ""
+}
+
+variable "subdomain" {
+  description = "Subdomain for the agent"
+  type        = string
+  default     = "agent"
 }
 
 # Superblocks Configuration
