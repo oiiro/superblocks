@@ -32,7 +32,7 @@ output "service_name" {
 
 output "service_arn" {
   description = "ARN of the ECS service"
-  value       = aws_ecs_service.superblocks.arn
+  value       = aws_ecs_service.superblocks.id
 }
 
 output "task_definition_arn" {
