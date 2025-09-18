@@ -4,10 +4,19 @@
 # Required Variables - Update these for your deployment
 region = "us-east-1"
 
-# Network Configuration - Use existing VPC/subnets from remote state
-# vpc_id will be read from VPC remote state
-# lb_subnet_ids will be read from VPC remote state (public subnets)
-# ecs_subnet_ids will be read from VPC remote state (private subnets)
+# Network Configuration - Use existing VPC/subnets from remote state OR specify directly
+# Option 1: Leave commented to use VPC remote state (default)
+# Option 2: Uncomment and provide specific IDs for your environment
+
+# vpc_id = "vpc-123456789abcdef0"    # Your VPC ID
+# lb_subnet_ids = [
+#   "subnet-111111111aaaaaaa",       # Public subnet 1 (for load balancer)
+#   "subnet-222222222bbbbbb"         # Public subnet 2 (for load balancer)
+# ]
+# ecs_subnet_ids = [
+#   "subnet-333333333cccccc",        # Private subnet 1 (for ECS tasks)
+#   "subnet-444444444dddddd"         # Private subnet 2 (for ECS tasks)
+# ]
 
 # Domain Configuration
 domain = "superblocks.oiiro.com"

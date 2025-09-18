@@ -58,6 +58,13 @@ variable "ssl_policy" {
   default     = "ELBSecurityPolicy-TLS-1-2-2017-01"
 }
 
+# Load Balancer Configuration
+variable "load_balancer_internal" {
+  description = "Whether the load balancer is internal"
+  type        = bool
+  default     = false
+}
+
 # Tags
 variable "tags" {
   description = "Tags to apply to resources"

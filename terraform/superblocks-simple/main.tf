@@ -49,6 +49,9 @@ module "superblocks_agent" {
   certificate_arn = ""
   ssl_policy      = var.ssl_policy
 
+  # Load Balancer Configuration
+  load_balancer_internal = var.load_balancer_internal
+
   # Tags
   tags = var.tags
 }
