@@ -19,6 +19,15 @@ This repository provides a **simplified** infrastructure stack for deploying Sup
 - No cross-account configurations
 - No custom domain requirements
 
+## Choose Your Implementation
+
+We provide **4 different implementations** - see [Implementation Comparison](docs/IMPLEMENTATION_COMPARISON.md) for details:
+
+1. **superblocks-simple** - HTTP only, no SSL (simplest)
+2. **superblocks-simple-https** - HTTPS with self-signed cert (recommended)
+3. **superblocks** - Official module with bugs (not recommended)
+4. **apply-workaround.sh** - Script to fix official module
+
 ## Quick Start
 
 ### Prerequisites
@@ -59,7 +68,12 @@ This repository provides a **simplified** infrastructure stack for deploying Sup
 ## Documentation
 
 **Quick Start:**
-- [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md) - Simplified deployment walkthrough
+- [Implementation Comparison](docs/IMPLEMENTATION_COMPARISON.md) - **START HERE** - Compare all 4 deployment options
+- [Simple Deployment Guide](docs/SIMPLE_DEPLOYMENT.md) - HTTP-only deployment walkthrough
+
+**Troubleshooting:**
+- [Module Error Workaround](docs/MODULE_ERROR_WORKAROUND.md) - Fix for official module bugs
+- [HTTPS Workaround](docs/HTTPS_WORKAROUND.md) - SSL certificate solutions
 
 **Advanced (Optional):**
 - [Setup Guide](docs/SETUP_GUIDE.md) - Complete deployment with Route53
