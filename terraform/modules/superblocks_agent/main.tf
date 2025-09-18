@@ -377,7 +377,7 @@ resource "aws_ecs_task_definition" "superblocks" {
         },
         {
           name  = "SUPERBLOCKS_AGENT_HOST_URL"
-          value = "${local.protocol}://${aws_lb.superblocks.dns_name}"
+          value = var.domain != "" && var.subdomain != "" ? "${local.protocol}://${var.subdomain}.${var.domain}" : "${local.protocol}://${aws_lb.superblocks.dns_name}"
         },
         {
           name  = "SUPERBLOCKS_AGENT_ENVIRONMENT"

@@ -15,6 +15,11 @@ output "load_balancer_arn" {
   value       = aws_lb.superblocks.arn
 }
 
+output "load_balancer_zone_id" {
+  description = "Zone ID of the load balancer (for Route53 Alias records)"
+  value       = aws_lb.superblocks.zone_id
+}
+
 output "cluster_name" {
   description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.superblocks.name
