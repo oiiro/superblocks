@@ -36,6 +36,7 @@ module "superblocks_agent" {
   superblocks_agent_key = var.superblocks_agent_key
   agent_key_secret_arn  = var.agent_key_secret_arn
 
+
   # SSL Configuration (Always use HTTPS for production)
   enable_ssl      = true
   certificate_arn = var.certificate_arn # Empty = self-signed

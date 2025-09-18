@@ -119,7 +119,7 @@ variable "memory_units" {
 variable "container_image" {
   description = "Docker image for Superblocks container"
   type        = string
-  default     = "ghcr.io/superblocksteam/agent:latest"
+  default     = "ghcr.io/superblocksteam/agent:v1.27.0"
 }
 
 variable "container_port" {
