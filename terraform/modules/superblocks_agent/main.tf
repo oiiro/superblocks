@@ -44,11 +44,20 @@ resource "tls_self_signed_cert" "superblocks" {
   private_key_pem = tls_private_key.superblocks[0].private_key_pem
 
   subject {
-    common_name  = "superblocks.local"
+    common_name  = var.domain != "" && var.subdomain != "" ? "${var.subdomain}.${var.domain}" : "superblocks.local"
     organization = "Superblocks"
   }
 
   validity_period_hours = 8760 # 1 year
+
+  # Add DNS names for the certificate
+  dns_names = var.domain != "" && var.subdomain != "" ? [
+    "${var.subdomain}.${var.domain}",
+    aws_lb.superblocks.dns_name
+  ] : [
+    "superblocks.local",
+    aws_lb.superblocks.dns_name
+  ]
 
   allowed_uses = [
     "key_encipherment",
