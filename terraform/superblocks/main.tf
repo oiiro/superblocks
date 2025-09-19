@@ -36,6 +36,10 @@ module "superblocks_agent" {
   superblocks_agent_key = var.superblocks_agent_key
   agent_key_secret_arn  = var.agent_key_secret_arn
 
+  # Environment variables to handle self-signed certificate
+  environment_variables = {
+    SUPERBLOCKS_AGENT_TLS_INSECURE = "true"
+  }
 
   # SSL Configuration (Always use HTTPS for production)
   enable_ssl      = true
