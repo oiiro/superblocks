@@ -245,7 +245,7 @@ resource "aws_rds_cluster" "aurora_mysql" {
   copy_tags_to_snapshot        = true
 
   # Security
-  storage_encrypted               = true
+  storage_encrypted = true
   # kms_key_id uses default AWS managed key when not specified
   enabled_cloudwatch_logs_exports = ["error", "general", "slowquery", "audit"]
 
@@ -391,6 +391,14 @@ resource "aws_instance" "bastion" {
 
   associate_public_ip_address = true
 
+  # Ensure IAM resources are created before instance
+  depends_on = [
+    aws_iam_role.bastion,
+    aws_iam_instance_profile.bastion,
+    aws_iam_role_policy_attachment.bastion_ssm,
+    aws_iam_role_policy_attachment.bastion_cloudwatch
+  ]
+
   root_block_device {
     volume_type           = "gp3"
     volume_size           = 20
@@ -410,9 +418,23 @@ resource "aws_instance" "bastion" {
     wget https://amazoncloudwatch-agent.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
     rpm -U ./amazon-cloudwatch-agent.rpm
 
-    # SSM agent is pre-installed on AL2023
+    # SSM agent is pre-installed on AL2023 - ensure it's properly configured
     systemctl enable amazon-ssm-agent
-    systemctl start amazon-ssm-agent
+    systemctl restart amazon-ssm-agent
+
+    # Wait for SSM agent to register (up to 5 minutes)
+    for i in {1..30}; do
+      if systemctl is-active --quiet amazon-ssm-agent; then
+        echo "SSM agent is running"
+        break
+      fi
+      echo "Waiting for SSM agent... attempt $i/30"
+      sleep 10
+    done
+
+    # Force SSM agent registration
+    /opt/amazon/ssm/bin/amazon-ssm-agent -register -clear -region $(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    systemctl restart amazon-ssm-agent
 
     # Set hostname
     hostnamectl set-hostname ${local.name_prefix}-bastion
@@ -451,4 +473,44 @@ resource "aws_instance" "bastion" {
   lifecycle {
     ignore_changes = [ami]
   }
+}
+
+# Null resource to ensure IAM instance profile is properly attached
+resource "null_resource" "bastion_iam_fix" {
+  count = var.enable_bastion ? 1 : 0
+
+  # Trigger when instance or profile changes
+  triggers = {
+    instance_id = aws_instance.bastion[0].id
+    profile_arn = aws_iam_instance_profile.bastion[0].arn
+  }
+
+  # Ensure IAM instance profile is attached (backup in case inline attachment fails)
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Check if instance profile is attached, if not attach it
+      CURRENT_PROFILE=$(aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn' --output text 2>/dev/null || echo "None")
+
+      if [ "$CURRENT_PROFILE" = "None" ] || [ "$CURRENT_PROFILE" = "null" ]; then
+        echo "Attaching IAM instance profile to bastion instance..."
+        aws ec2 associate-iam-instance-profile \
+          --instance-id ${aws_instance.bastion[0].id} \
+          --iam-instance-profile Name=${aws_iam_instance_profile.bastion[0].name}
+
+        # Wait for attachment
+        sleep 10
+
+        # Verify attachment
+        aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} \
+          --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn'
+      else
+        echo "IAM instance profile already attached: $CURRENT_PROFILE"
+      fi
+    EOT
+  }
+
+  depends_on = [
+    aws_instance.bastion,
+    aws_iam_instance_profile.bastion
+  ]
 }
