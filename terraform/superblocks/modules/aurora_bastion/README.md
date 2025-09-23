@@ -120,13 +120,12 @@ module "database" {
 
 ### Integration with Superblocks
 
-```hcl
-# In your main.tf where Superblocks is deployed
-module "superblocks_agent" {
-  source = "../modules/superblocks_agent"
-  # ... superblocks configuration ...
-}
+**Note**: If you're using this module with the Superblocks deployment, the integration is already configured in `database.tf`. No changes to `main.tf` are needed.
 
+For reference, here's how the integration works:
+
+```hcl
+# This is already configured in database.tf - DO NOT add to main.tf
 module "database" {
   source = "./modules/aurora_bastion"
 
@@ -134,13 +133,15 @@ module "database" {
   private_subnet_ids = var.ecs_subnet_ids  # Same as Superblocks ECS
   public_subnet_ids  = var.lb_subnet_ids   # Same as Superblocks ALB
 
-  # Link to Superblocks ECS security group
+  # Automatically links to Superblocks ECS security group
   ecs_service_sg_id = module.superblocks_agent.ecs_security_group_id
 
   project_name = "superblocks"
-  env          = var.env
+  env          = "dev"
 }
 ```
+
+For standalone usage (without Superblocks), create your own configuration file.
 
 ## Input Variables
 
