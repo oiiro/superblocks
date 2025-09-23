@@ -179,6 +179,19 @@ variable "target_cpu_utilization" {
   default     = 70
 }
 
+# Database Access
+variable "enable_database_access" {
+  description = "Enable IAM permissions for ECS tasks to access database secrets"
+  type        = bool
+  default     = false
+}
+
+variable "database_secret_arn" {
+  description = "ARN of the database credentials secret in Secrets Manager"
+  type        = string
+  default     = ""
+}
+
 # Tags
 variable "tags" {
   description = "Tags to apply to resources"

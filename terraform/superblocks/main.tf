@@ -36,6 +36,9 @@ module "superblocks_agent" {
   superblocks_agent_key = var.superblocks_agent_key
   agent_key_secret_arn  = var.agent_key_secret_arn
 
+  # Database Access Configuration
+  enable_database_access = true
+  database_secret_arn    = module.database.db_secret_arn
 
   # SSL Configuration (Always use HTTPS for production)
   enable_ssl      = true

@@ -159,6 +159,32 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
   })
 }
 
+# IAM Policy for Database Secrets Manager access (optional)
+resource "aws_iam_role_policy" "ecs_task_database" {
+  count = var.enable_database_access ? 1 : 0
+  name  = "${var.name_prefix}-database-secrets-policy"
+  role  = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.database_secret_arn != "" ? var.database_secret_arn : "*"
+        Condition = {
+          StringEquals = {
+            "secretsmanager:ResourceTag/Project" = "superblocks"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "superblocks" {
   name              = "/ecs/${var.name_prefix}"
