@@ -28,3 +28,13 @@ output "route53_setup" {
 
 EOT
 }
+
+output "container_environment_variables" {
+  description = "All environment variables configured in the ECS task definition container (final values after overrides)"
+  value       = module.superblocks_agent.container_environment_variables
+}
+
+output "environment_variable_precedence" {
+  description = "Shows which built-in variables are overridden by your custom environment_variables"
+  value       = module.superblocks_agent.environment_variable_precedence
+}

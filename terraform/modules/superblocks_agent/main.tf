@@ -45,7 +45,7 @@ resource "tls_self_signed_cert" "superblocks" {
 
   subject {
     common_name  = var.domain != "" && var.subdomain != "" ? "${var.subdomain}.${var.domain}" : "superblocks.local"
-    organization = "Superblocks"
+    organization = "Wealth Enhancement Group"
   }
 
   validity_period_hours = 8760 # 1 year

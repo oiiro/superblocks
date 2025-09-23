@@ -41,6 +41,12 @@ module "superblocks_agent" {
   enable_ssl      = true
   certificate_arn = var.certificate_arn # Empty = self-signed
 
+  environment_variables = {
+    SUPERBLOCKS_AGENT_HOST_URL               = "https://superblocksdemo.wealthenhancement.com"
+    SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY = "superblocks_key"
+    SUPERBLOCKS_ORCHESTRATOR_AGENT_HOST_URL  = "https://superblocksdemo.wealthenhancement.com"
+  }
+
   # Use all other defaults from the module
   tags = {
     Project     = "Superblocks"

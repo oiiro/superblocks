@@ -79,3 +79,54 @@ output "log_group_arn" {
   description = "CloudWatch log group ARN"
   value       = aws_cloudwatch_log_group.superblocks.arn
 }
+
+output "container_environment_variables" {
+  description = "All environment variables configured in the ECS task definition (showing final values after overrides)"
+  value = merge(
+    # Built-in module environment variables
+    {
+      "SUPERBLOCKS_AGENT_HOST_URL" = var.domain != "" && var.subdomain != "" ? "${local.protocol}://${var.subdomain}.${var.domain}" : "${local.protocol}://${aws_lb.superblocks.dns_name}"
+      "SUPERBLOCKS_AGENT_ENVIRONMENT" = var.superblocks_agent_environment
+      "SUPERBLOCKS_AGENT_TAGS" = var.superblocks_agent_tags
+      "SUPERBLOCKS_SERVER_URL" = "https://api.superblocks.com"
+      "SUPERBLOCKS_AGENT_DATA_DOMAIN" = "app.superblocks.com"
+      "SUPERBLOCKS_WORKER_LOCAL_ENABLED" = "true"
+    },
+    # Agent key (from direct variable or secrets manager)
+    local.use_secrets_manager ? {
+      "SUPERBLOCKS_AGENT_KEY" = "[FROM_SECRETS_MANAGER: ${var.agent_key_secret_arn}]"
+    } : {
+      "SUPERBLOCKS_AGENT_KEY" = "[SENSITIVE_VALUE]"
+    },
+    # User-defined environment variables (these OVERRIDE built-in ones)
+    var.environment_variables
+  )
+}
+
+output "environment_variable_precedence" {
+  description = "Shows which variables are overridden by user-defined environment_variables"
+  value = {
+    built_in_variables = [
+      "SUPERBLOCKS_AGENT_HOST_URL",
+      "SUPERBLOCKS_AGENT_ENVIRONMENT",
+      "SUPERBLOCKS_AGENT_TAGS",
+      "SUPERBLOCKS_SERVER_URL",
+      "SUPERBLOCKS_AGENT_DATA_DOMAIN",
+      "SUPERBLOCKS_WORKER_LOCAL_ENABLED",
+      "SUPERBLOCKS_AGENT_KEY"
+    ]
+    user_override_variables = keys(var.environment_variables)
+    overridden_built_ins = [
+      for var_name in keys(var.environment_variables) : var_name
+      if contains([
+        "SUPERBLOCKS_AGENT_HOST_URL",
+        "SUPERBLOCKS_AGENT_ENVIRONMENT",
+        "SUPERBLOCKS_AGENT_TAGS",
+        "SUPERBLOCKS_SERVER_URL",
+        "SUPERBLOCKS_AGENT_DATA_DOMAIN",
+        "SUPERBLOCKS_WORKER_LOCAL_ENABLED",
+        "SUPERBLOCKS_AGENT_KEY"
+      ], var_name)
+    ]
+  }
+}
