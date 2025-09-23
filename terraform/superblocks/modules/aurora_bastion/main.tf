@@ -487,25 +487,24 @@ resource "null_resource" "bastion_iam_fix" {
 
   # Ensure IAM instance profile is attached (backup in case inline attachment fails)
   provisioner "local-exec" {
-    command = <<-EOT
+    interpreter = ["PowerShell", "-Command"]
+    command     = <<-EOT
       # Check if instance profile is attached, if not attach it
-      CURRENT_PROFILE=$(aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn' --output text 2>/dev/null || echo "None")
+      $CURRENT_PROFILE = aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn' --output text 2>$null
+      if ($LASTEXITCODE -ne 0) { $CURRENT_PROFILE = "None" }
 
-      if [ "$CURRENT_PROFILE" = "None" ] || [ "$CURRENT_PROFILE" = "null" ]; then
-        echo "Attaching IAM instance profile to bastion instance..."
-        aws ec2 associate-iam-instance-profile \
-          --instance-id ${aws_instance.bastion[0].id} \
-          --iam-instance-profile Name=${aws_iam_instance_profile.bastion[0].name}
+      if ($CURRENT_PROFILE -eq "None" -or $CURRENT_PROFILE -eq "null" -or [string]::IsNullOrEmpty($CURRENT_PROFILE)) {
+        Write-Host "Attaching IAM instance profile to bastion instance..."
+        aws ec2 associate-iam-instance-profile --instance-id ${aws_instance.bastion[0].id} --iam-instance-profile Name=${aws_iam_instance_profile.bastion[0].name}
 
         # Wait for attachment
-        sleep 10
+        Start-Sleep -Seconds 10
 
         # Verify attachment
-        aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} \
-          --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn'
-      else
-        echo "IAM instance profile already attached: $CURRENT_PROFILE"
-      fi
+        aws ec2 describe-instances --instance-ids ${aws_instance.bastion[0].id} --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn'
+      } else {
+        Write-Host "IAM instance profile already attached: $CURRENT_PROFILE"
+      }
     EOT
   }
 
