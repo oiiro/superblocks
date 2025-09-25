@@ -391,6 +391,14 @@ resource "aws_instance" "bastion" {
 
   associate_public_ip_address = true
 
+  # Configure Instance Metadata Service for SSM compatibility
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional" # Use "required" for IMDSv2 only, but SSM works better with "optional"
+    http_put_response_hop_limit = 2
+    instance_metadata_tags      = "enabled"
+  }
+
   # Ensure IAM resources are created before instance
   depends_on = [
     aws_iam_role.bastion,
