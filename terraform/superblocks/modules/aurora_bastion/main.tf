@@ -620,7 +620,7 @@ resource "aws_instance" "bastion" {
 
     # Check network connectivity
     log_msg "=== Network Connectivity Test ==="
-    if curl -s -o /dev/null -w "%{http_code}" https://ssm.$REGION.amazonaws.com --connect-timeout 5 | grep -q "403\|200"; then
+    if curl -s -o /dev/null -w "%%{http_code}" https://ssm.$REGION.amazonaws.com --connect-timeout 5 | grep -q "403\|200"; then
         log_msg "[OK] Can reach SSM endpoint"
     else
         log_msg "[ERROR] Cannot reach SSM endpoint"
