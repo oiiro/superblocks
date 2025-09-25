@@ -465,6 +465,78 @@ resource "aws_instance" "bastion" {
     systemctl enable amazon-ssm-agent
     systemctl start amazon-ssm-agent
 
+    # Create systemd drop-in to ensure SSM agent auto-restarts
+    mkdir -p /etc/systemd/system/amazon-ssm-agent.service.d
+    cat > /etc/systemd/system/amazon-ssm-agent.service.d/override.conf <<'SYSTEMD'
+    [Service]
+    Restart=always
+    RestartSec=60
+    StartLimitInterval=0
+    StartLimitBurst=0
+
+    [Unit]
+    StartLimitIntervalSec=0
+    SYSTEMD
+
+    # Reload systemd to apply changes
+    systemctl daemon-reload
+
+    # Create a monitoring script that ensures SSM agent stays running
+    cat > /usr/local/bin/monitor-ssm-agent.sh <<'MONITOR'
+    #!/bin/bash
+    # SSM Agent Monitor - Ensures SSM agent is always running
+
+    while true; do
+        if ! systemctl is-active --quiet amazon-ssm-agent; then
+            echo "$(date): SSM Agent is not running, starting it..."
+
+            # Clear any stale data
+            rm -rf /var/lib/amazon/ssm/registration
+
+            # Get region
+            REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+
+            # Re-register and start
+            /opt/amazon/ssm/bin/amazon-ssm-agent -register -clear -region $REGION 2>/dev/null
+            systemctl restart amazon-ssm-agent
+
+            # Wait for service to stabilize
+            sleep 30
+
+            if systemctl is-active --quiet amazon-ssm-agent; then
+                echo "$(date): SSM Agent successfully restarted"
+            else
+                echo "$(date): SSM Agent failed to restart, will retry in 60 seconds"
+            fi
+        fi
+        sleep 60
+    done
+    MONITOR
+
+    chmod +x /usr/local/bin/monitor-ssm-agent.sh
+
+    # Create systemd service for the monitor
+    cat > /etc/systemd/system/ssm-monitor.service <<'SERVICE'
+    [Unit]
+    Description=SSM Agent Monitor
+    After=network.target amazon-ssm-agent.service
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/monitor-ssm-agent.sh
+    Restart=always
+    StandardOutput=journal
+    StandardError=journal
+
+    [Install]
+    WantedBy=multi-user.target
+    SERVICE
+
+    # Enable and start the monitor service
+    systemctl daemon-reload
+    systemctl enable ssm-monitor.service
+    systemctl start ssm-monitor.service
+
     # Wait for SSM agent to start
     sleep 30
 
@@ -492,8 +564,27 @@ resource "aws_instance" "bastion" {
     echo "=== Final SSM Status ==="
     ps aux | grep -i ssm | grep -v grep || echo "No SSM processes running"
 
+    # Add cron job as additional backup to ensure SSM agent runs
+    echo "*/5 * * * * root systemctl is-active --quiet amazon-ssm-agent || systemctl restart amazon-ssm-agent" >> /etc/crontab
+
+    # Add SSM agent check to rc.local for boot time
+    cat >> /etc/rc.d/rc.local <<'RCLOCAL'
+    #!/bin/bash
+    # Ensure SSM agent starts on boot
+    sleep 60
+    systemctl is-active --quiet amazon-ssm-agent || systemctl restart amazon-ssm-agent
+    RCLOCAL
+    chmod +x /etc/rc.d/rc.local
+
     # Set hostname
     hostnamectl set-hostname ${local.name_prefix}-bastion
+
+    # Final message
+    echo "=== Bastion Setup Complete ==="
+    echo "SSM Agent Monitor: Enabled"
+    echo "Auto-restart: Configured via systemd"
+    echo "Backup monitoring: Cron job every 5 minutes"
+    echo "Boot check: rc.local configured"
 
     # Create mysql helper script
     cat > /usr/local/bin/connect-aurora.sh <<'SCRIPT'
