@@ -427,43 +427,86 @@ resource "aws_instance" "bastion" {
     rpm -U ./amazon-cloudwatch-agent.rpm
 
     # Verify and install SSM agent if needed (should be pre-installed on AL2023)
+    echo "========================================="
+    echo "=== SSM AGENT SETUP STARTING ==="
+    echo "========================================="
+    echo "Timestamp: $(date)"
 
     # Get region from instance metadata
     REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+    echo "Instance ID: $INSTANCE_ID"
     echo "Instance region: $REGION"
 
     # Check if SSM agent is installed, if not install it
+    echo "=== Checking SSM Agent Installation ==="
     if ! command -v amazon-ssm-agent &> /dev/null; then
-        echo "SSM Agent not found, installing..."
+        echo "[ERROR] SSM Agent not found, installing..."
         dnf install -y amazon-ssm-agent
+        if [ $? -eq 0 ]; then
+            echo "[SUCCESS] SSM Agent installed successfully"
+        else
+            echo "[CRITICAL] Failed to install SSM Agent!"
+        fi
     else
-        echo "SSM Agent is already installed"
+        echo "[OK] SSM Agent is already installed"
+        amazon-ssm-agent --version 2>&1 || echo "[WARNING] Cannot get SSM agent version"
     fi
 
     # Ensure SSM agent package is up to date
+    echo "=== Updating SSM Agent Package ==="
     dnf update -y amazon-ssm-agent
+    echo "[INFO] SSM Agent update completed"
 
     # Test DNS resolution for SSM endpoints
-    echo "Testing SSM endpoint resolution..."
-    nslookup ssm.$REGION.amazonaws.com
-    nslookup ssmmessages.$REGION.amazonaws.com
-    nslookup ec2messages.$REGION.amazonaws.com
+    echo "=== Testing DNS Resolution for SSM Endpoints ==="
+    for endpoint in ssm ssmmessages ec2messages; do
+        echo "[TEST] Resolving $endpoint.$REGION.amazonaws.com..."
+        nslookup $endpoint.$REGION.amazonaws.com
+        if [ $? -eq 0 ]; then
+            echo "[OK] $endpoint endpoint resolved successfully"
+        else
+            echo "[ERROR] Failed to resolve $endpoint endpoint!"
+        fi
+    done
 
     # Test connectivity to SSM endpoints
-    echo "Testing HTTPS connectivity to SSM..."
-    curl -I https://ssm.$REGION.amazonaws.com --connect-timeout 5 || echo "SSM endpoint unreachable"
+    echo "=== Testing HTTPS Connectivity to SSM Endpoints ==="
+    for endpoint in ssm ssmmessages ec2messages; do
+        echo "[TEST] Checking HTTPS connectivity to $endpoint.$REGION.amazonaws.com..."
+        curl -I https://$endpoint.$REGION.amazonaws.com --connect-timeout 5 --max-time 10 2>&1
+        if [ $? -eq 0 ]; then
+            echo "[OK] $endpoint endpoint is reachable"
+        else
+            echo "[ERROR] Cannot reach $endpoint endpoint!"
+        fi
+    done
 
     # Configure SSM agent with correct region
+    echo "=== Configuring SSM Agent ==="
     mkdir -p /etc/amazon/ssm
     echo "{\"Mds\":{\"CommandWorkersLimit\":5,\"StopTimeoutMillis\":20000,\"Endpoint\":\"\",\"CommandRetryLimit\":15},\"Ssm\":{\"Endpoint\":\"\",\"HealthFrequencyMinutes\":5,\"CustomInventoryEnabled\":false},\"Mgs\":{\"Region\":\"$REGION\",\"Endpoint\":\"\",\"StopTimeoutMillis\":20000,\"SessionWorkersLimit\":1000},\"Agent\":{\"Region\":\"$REGION\"}}" > /etc/amazon/ssm/amazon-ssm-agent.json
+    echo "[INFO] SSM agent configuration written to /etc/amazon/ssm/amazon-ssm-agent.json"
 
     # Clear any existing registration
+    echo "=== Clearing Previous SSM Registration ==="
     systemctl stop amazon-ssm-agent
+    echo "[INFO] SSM agent stopped"
     rm -rf /var/lib/amazon/ssm/registration
+    echo "[INFO] Previous registration data cleared"
 
     # Start SSM agent with fresh registration
+    echo "=== Starting SSM Agent ==="
     systemctl enable amazon-ssm-agent
+    echo "[INFO] SSM agent enabled for autostart"
     systemctl start amazon-ssm-agent
+    if [ $? -eq 0 ]; then
+        echo "[SUCCESS] SSM agent start command executed"
+    else
+        echo "[ERROR] Failed to start SSM agent!"
+        echo "[DEBUG] Checking systemd status..."
+        systemctl status amazon-ssm-agent --no-pager
+    fi
 
     # Create systemd drop-in to ensure SSM agent auto-restarts
     mkdir -p /etc/systemd/system/amazon-ssm-agent.service.d
@@ -541,28 +584,75 @@ resource "aws_instance" "bastion" {
     sleep 30
 
     # Verify SSM agent is running
-    echo "=== SSM Agent Status ==="
-    systemctl status amazon-ssm-agent
+    echo "========================================="
+    echo "=== SSM AGENT VERIFICATION ==="
+    echo "========================================="
+
+    echo "=== Checking SSM Agent Service Status ==="
+    systemctl status amazon-ssm-agent --no-pager
 
     if systemctl is-active --quiet amazon-ssm-agent; then
-        echo "✓ SSM Agent is ACTIVE"
+        echo "[SUCCESS] ✓ SSM Agent service is ACTIVE"
+
+        # Check if process is actually running
+        echo "=== Verifying SSM Agent Process ==="
+        SSM_PID=$(pgrep -f amazon-ssm-agent)
+        if [ -n "$SSM_PID" ]; then
+            echo "[OK] SSM Agent process running with PID: $SSM_PID"
+            ps -fp $SSM_PID
+        else
+            echo "[WARNING] SSM Agent service is active but no process found!"
+        fi
     else
-        echo "✗ SSM Agent FAILED to start"
-        echo "Checking logs..."
-        journalctl -u amazon-ssm-agent --no-pager -n 50
+        echo "[CRITICAL] ✗ SSM Agent service is NOT active"
+        echo "[DEBUG] Checking systemd logs..."
+        journalctl -u amazon-ssm-agent --no-pager -n 100
+        echo "[DEBUG] Checking SSM agent log files..."
+        if [ -f /var/log/amazon/ssm/amazon-ssm-agent.log ]; then
+            echo "=== Last 50 lines of SSM agent log ==="
+            tail -n 50 /var/log/amazon/ssm/amazon-ssm-agent.log
+        fi
     fi
 
     # Log agent version and registration status
     echo "=== SSM Agent Version ==="
-    amazon-ssm-agent --version || echo "Unable to get version"
+    amazon-ssm-agent --version 2>&1 || echo "[ERROR] Unable to get SSM agent version"
 
     # Check if agent can reach SSM service
-    echo "=== Testing SSM Connectivity ==="
-    curl -I https://ssm.$REGION.amazonaws.com --max-time 10 || echo "Cannot reach SSM endpoint"
+    echo "=== Testing Final SSM Connectivity ==="
+    curl -I https://ssm.$REGION.amazonaws.com --max-time 10 2>&1
+    if [ $? -eq 0 ]; then
+        echo "[OK] SSM endpoint is reachable"
+    else
+        echo "[ERROR] SSM endpoint is NOT reachable - this will prevent registration!"
+    fi
 
-    # Final status check
-    echo "=== Final SSM Status ==="
-    ps aux | grep -i ssm | grep -v grep || echo "No SSM processes running"
+    # Check SSM registration files
+    echo "=== SSM Registration Status ==="
+    if [ -f /var/lib/amazon/ssm/registration ]; then
+        echo "[INFO] Registration file exists"
+        ls -la /var/lib/amazon/ssm/
+    else
+        echo "[WARNING] No registration file found - agent may not be registered"
+    fi
+
+    # Final process check
+    echo "=== Final SSM Process Check ==="
+    ps aux | grep -i ssm | grep -v grep
+    if [ $? -eq 0 ]; then
+        echo "[OK] SSM processes are running"
+    else
+        echo "[CRITICAL] No SSM processes found running!"
+    fi
+
+    # Check network routes
+    echo "=== Network Route Check ==="
+    ip route show | grep default
+    if [ $? -eq 0 ]; then
+        echo "[OK] Default route exists"
+    else
+        echo "[ERROR] No default route - cannot reach internet!"
+    fi
 
     # Add cron job as additional backup to ensure SSM agent runs
     echo "*/5 * * * * root systemctl is-active --quiet amazon-ssm-agent || systemctl restart amazon-ssm-agent" >> /etc/crontab
