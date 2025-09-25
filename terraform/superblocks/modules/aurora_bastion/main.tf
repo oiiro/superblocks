@@ -426,11 +426,22 @@ resource "aws_instance" "bastion" {
     wget https://amazoncloudwatch-agent.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
     rpm -U ./amazon-cloudwatch-agent.rpm
 
-    # SSM agent is pre-installed on AL2023 - ensure it's properly configured
+    # Verify and install SSM agent if needed (should be pre-installed on AL2023)
 
     # Get region from instance metadata
     REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
     echo "Instance region: $REGION"
+
+    # Check if SSM agent is installed, if not install it
+    if ! command -v amazon-ssm-agent &> /dev/null; then
+        echo "SSM Agent not found, installing..."
+        dnf install -y amazon-ssm-agent
+    else
+        echo "SSM Agent is already installed"
+    fi
+
+    # Ensure SSM agent package is up to date
+    dnf update -y amazon-ssm-agent
 
     # Test DNS resolution for SSM endpoints
     echo "Testing SSM endpoint resolution..."
@@ -454,13 +465,32 @@ resource "aws_instance" "bastion" {
     systemctl enable amazon-ssm-agent
     systemctl start amazon-ssm-agent
 
-    # Wait and verify SSM agent is running
+    # Wait for SSM agent to start
     sleep 30
+
+    # Verify SSM agent is running
+    echo "=== SSM Agent Status ==="
     systemctl status amazon-ssm-agent
 
-    # Log the agent status
-    echo "SSM Agent Status:"
-    systemctl is-active amazon-ssm-agent
+    if systemctl is-active --quiet amazon-ssm-agent; then
+        echo "✓ SSM Agent is ACTIVE"
+    else
+        echo "✗ SSM Agent FAILED to start"
+        echo "Checking logs..."
+        journalctl -u amazon-ssm-agent --no-pager -n 50
+    fi
+
+    # Log agent version and registration status
+    echo "=== SSM Agent Version ==="
+    amazon-ssm-agent --version || echo "Unable to get version"
+
+    # Check if agent can reach SSM service
+    echo "=== Testing SSM Connectivity ==="
+    curl -I https://ssm.$REGION.amazonaws.com --max-time 10 || echo "Cannot reach SSM endpoint"
+
+    # Final status check
+    echo "=== Final SSM Status ==="
+    ps aux | grep -i ssm | grep -v grep || echo "No SSM processes running"
 
     # Set hostname
     hostnamectl set-hostname ${local.name_prefix}-bastion
