@@ -419,22 +419,40 @@ resource "aws_instance" "bastion" {
     rpm -U ./amazon-cloudwatch-agent.rpm
 
     # SSM agent is pre-installed on AL2023 - ensure it's properly configured
+
+    # Get region from instance metadata
+    REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    echo "Instance region: $REGION"
+
+    # Test DNS resolution for SSM endpoints
+    echo "Testing SSM endpoint resolution..."
+    nslookup ssm.$REGION.amazonaws.com
+    nslookup ssmmessages.$REGION.amazonaws.com
+    nslookup ec2messages.$REGION.amazonaws.com
+
+    # Test connectivity to SSM endpoints
+    echo "Testing HTTPS connectivity to SSM..."
+    curl -I https://ssm.$REGION.amazonaws.com --connect-timeout 5 || echo "SSM endpoint unreachable"
+
+    # Configure SSM agent with correct region
+    mkdir -p /etc/amazon/ssm
+    echo "{\"Mds\":{\"CommandWorkersLimit\":5,\"StopTimeoutMillis\":20000,\"Endpoint\":\"\",\"CommandRetryLimit\":15},\"Ssm\":{\"Endpoint\":\"\",\"HealthFrequencyMinutes\":5,\"CustomInventoryEnabled\":false},\"Mgs\":{\"Region\":\"$REGION\",\"Endpoint\":\"\",\"StopTimeoutMillis\":20000,\"SessionWorkersLimit\":1000},\"Agent\":{\"Region\":\"$REGION\"}}" > /etc/amazon/ssm/amazon-ssm-agent.json
+
+    # Clear any existing registration
+    systemctl stop amazon-ssm-agent
+    rm -rf /var/lib/amazon/ssm/registration
+
+    # Start SSM agent with fresh registration
     systemctl enable amazon-ssm-agent
-    systemctl restart amazon-ssm-agent
+    systemctl start amazon-ssm-agent
 
-    # Wait for SSM agent to register (up to 5 minutes)
-    for i in {1..30}; do
-      if systemctl is-active --quiet amazon-ssm-agent; then
-        echo "SSM agent is running"
-        break
-      fi
-      echo "Waiting for SSM agent... attempt $i/30"
-      sleep 10
-    done
+    # Wait and verify SSM agent is running
+    sleep 30
+    systemctl status amazon-ssm-agent
 
-    # Force SSM agent registration
-    /opt/amazon/ssm/bin/amazon-ssm-agent -register -clear -region $(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-    systemctl restart amazon-ssm-agent
+    # Log the agent status
+    echo "SSM Agent Status:"
+    systemctl is-active amazon-ssm-agent
 
     # Set hostname
     hostnamectl set-hostname ${local.name_prefix}-bastion
