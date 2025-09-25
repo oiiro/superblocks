@@ -575,10 +575,123 @@ resource "aws_instance" "bastion" {
     WantedBy=multi-user.target
     SERVICE
 
+    # Create boot-time SSM diagnostic script
+    cat > /usr/local/bin/ssm-boot-diagnostics.sh <<'BOOTDIAG'
+    #!/bin/bash
+    # SSM Boot Diagnostics - Runs on every boot/reboot
+
+    LOG_FILE="/var/log/ssm-boot-diagnostics.log"
+    REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+    # Function to log with timestamp
+    log_msg() {
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOG_FILE
+    }
+
+    # Start logging
+    log_msg "========================================="
+    log_msg "=== SSM BOOT DIAGNOSTICS STARTING ==="
+    log_msg "========================================="
+    log_msg "Instance: $INSTANCE_ID"
+    log_msg "Region: $REGION"
+    log_msg "Boot Time: $(uptime -s)"
+
+    # Wait for network to be fully up
+    sleep 10
+
+    # Check SSM agent service status
+    log_msg "=== SSM Agent Service Status ==="
+    if systemctl is-active --quiet amazon-ssm-agent; then
+        log_msg "[SUCCESS] SSM Agent service is ACTIVE"
+        systemctl status amazon-ssm-agent --no-pager >> $LOG_FILE 2>&1
+    else
+        log_msg "[ERROR] SSM Agent service is NOT active"
+        log_msg "Attempting to start SSM agent..."
+        systemctl restart amazon-ssm-agent
+        sleep 10
+        if systemctl is-active --quiet amazon-ssm-agent; then
+            log_msg "[RECOVERY] SSM Agent started successfully after retry"
+        else
+            log_msg "[CRITICAL] SSM Agent failed to start"
+            journalctl -u amazon-ssm-agent -n 50 --no-pager >> $LOG_FILE 2>&1
+        fi
+    fi
+
+    # Check network connectivity
+    log_msg "=== Network Connectivity Test ==="
+    if curl -s -o /dev/null -w "%{http_code}" https://ssm.$REGION.amazonaws.com --connect-timeout 5 | grep -q "403\|200"; then
+        log_msg "[OK] Can reach SSM endpoint"
+    else
+        log_msg "[ERROR] Cannot reach SSM endpoint"
+        # Try to diagnose network issue
+        ip route show | grep default >> $LOG_FILE 2>&1
+        nslookup ssm.$REGION.amazonaws.com >> $LOG_FILE 2>&1
+    fi
+
+    # Check IAM instance profile
+    log_msg "=== IAM Instance Profile Check ==="
+    PROFILE=$(curl -s http://169.254.169.254/latest/meta-data/iam/info 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        log_msg "[OK] IAM instance profile is attached"
+        echo "$PROFILE" >> $LOG_FILE
+    else
+        log_msg "[ERROR] No IAM instance profile attached"
+    fi
+
+    # Check SSM agent process
+    log_msg "=== SSM Agent Process Check ==="
+    if pgrep -f amazon-ssm-agent > /dev/null; then
+        log_msg "[OK] SSM agent process is running"
+        ps aux | grep ssm | grep -v grep >> $LOG_FILE
+    else
+        log_msg "[ERROR] No SSM agent process found"
+    fi
+
+    # Final status
+    log_msg "=== SSM Registration Status ==="
+    if [ -f /var/lib/amazon/ssm/registration ]; then
+        log_msg "[INFO] Registration file exists"
+    else
+        log_msg "[WARNING] No registration file - agent may need to register"
+    fi
+
+    log_msg "=== SSM Boot Diagnostics Complete ==="
+    echo "" >> $LOG_FILE
+
+    # Also output to console for EC2 console output
+    cat $LOG_FILE | tail -n 100
+    BOOTDIAG
+
+    chmod +x /usr/local/bin/ssm-boot-diagnostics.sh
+
+    # Create systemd service to run diagnostics on boot
+    cat > /etc/systemd/system/ssm-boot-diagnostics.service <<'BOOTSERVICE'
+    [Unit]
+    Description=SSM Boot Diagnostics
+    After=network-online.target amazon-ssm-agent.service
+    Wants=network-online.target
+
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/local/bin/ssm-boot-diagnostics.sh
+    RemainAfterExit=yes
+    StandardOutput=journal+console
+    StandardError=journal+console
+
+    [Install]
+    WantedBy=multi-user.target
+    BOOTSERVICE
+
     # Enable and start the monitor service
     systemctl daemon-reload
     systemctl enable ssm-monitor.service
+    systemctl enable ssm-boot-diagnostics.service
     systemctl start ssm-monitor.service
+
+    # Run boot diagnostics now for initial setup
+    echo "Running initial boot diagnostics..."
+    /usr/local/bin/ssm-boot-diagnostics.sh
 
     # Wait for SSM agent to start
     sleep 30
@@ -669,12 +782,34 @@ resource "aws_instance" "bastion" {
     # Set hostname
     hostnamectl set-hostname ${local.name_prefix}-bastion
 
+    # Create helper command to check SSM logs
+    cat > /usr/local/bin/check-ssm.sh <<'CHECKSSM'
+    #!/bin/bash
+    echo "=== SSM Agent Status ==="
+    systemctl status amazon-ssm-agent --no-pager
+
+    echo -e "\n=== SSM Boot Diagnostics Log ==="
+    if [ -f /var/log/ssm-boot-diagnostics.log ]; then
+        tail -n 50 /var/log/ssm-boot-diagnostics.log
+    else
+        echo "No boot diagnostics log found"
+    fi
+
+    echo -e "\n=== SSM Agent Registration ==="
+    aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" --output table 2>/dev/null || echo "Cannot check SSM registration"
+    CHECKSSM
+
+    chmod +x /usr/local/bin/check-ssm.sh
+
     # Final message
     echo "=== Bastion Setup Complete ==="
     echo "SSM Agent Monitor: Enabled"
     echo "Auto-restart: Configured via systemd"
+    echo "Boot diagnostics: Enabled (runs on every boot)"
     echo "Backup monitoring: Cron job every 5 minutes"
     echo "Boot check: rc.local configured"
+    echo "Boot diagnostics log: /var/log/ssm-boot-diagnostics.log"
+    echo "Helper command: /usr/local/bin/check-ssm.sh"
 
     # Create mysql helper script
     cat > /usr/local/bin/connect-aurora.sh <<'SCRIPT'
