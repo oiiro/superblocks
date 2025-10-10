@@ -14,13 +14,13 @@ module "users_table" {
   hash_key           = "user_id"
   range_key          = "created_at"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"  # ⚠️ NAME not ARN
+  ecs_task_role_name = "superblocks-ecs-task"  # ⚠️ NAME not ARN
 }
 ```
 
 **Important**: Use the **role NAME**, not the ARN:
-- ✅ Correct: `"superblocks-ecs-task-role"`
-- ❌ Wrong: `"arn:aws:iam::123456789012:role/superblocks-ecs-task-role"`
+- ✅ Correct: `"superblocks-ecs-task"`
+- ❌ Wrong: `"arn:aws:iam::123456789012:role/superblocks-ecs-task"`
 
 Deploy:
 ```bash
@@ -46,7 +46,7 @@ module "users_table" {
   hash_key           = "user_id"
   range_key          = "created_at"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 # ⬇️ NEW TABLE
@@ -56,7 +56,7 @@ module "transactions_table" {
   hash_key           = "txn_id"
   range_key          = "timestamp"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -86,7 +86,7 @@ module "users_table" {
   hash_key = "user_id"
   range_key = "created_at"
   app_name = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 module "transactions_table" {
@@ -95,7 +95,7 @@ module "transactions_table" {
   hash_key = "txn_id"
   range_key = "timestamp"
   app_name = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 # ⬇️ MORE TABLES
@@ -104,7 +104,7 @@ module "sessions_table" {
   table_name         = "sessions"
   hash_key           = "session_id"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
   # No range_key needed
 }
 
@@ -114,7 +114,7 @@ module "products_table" {
   hash_key           = "product_id"
   hash_key_type      = "N"  # Number type
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -137,7 +137,7 @@ module "users_table" {
   hash_key = "user_id"
   range_key = "created_at"
   app_name = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 # ❌ DELETE THIS ENTIRE BLOCK to remove transactions table
@@ -147,7 +147,7 @@ module "users_table" {
 #   hash_key = "txn_id"
 #   range_key = "timestamp"
 #   app_name = "superblocksdemo"
-#   ecs_task_role_name = "superblocks-ecs-task-role"
+#   ecs_task_role_name = "superblocks-ecs-task"
 # }
 
 module "sessions_table" {
@@ -155,7 +155,7 @@ module "sessions_table" {
   table_name = "sessions"
   hash_key = "session_id"
   app_name = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -185,7 +185,7 @@ module "users_table" {
   hash_key           = "user_id"
   range_key          = "created_at"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 EOF
 
@@ -201,7 +201,7 @@ module "transactions_table" {
   hash_key           = "txn_id"
   range_key          = "timestamp"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 EOF
 
@@ -239,7 +239,7 @@ terraform apply
 | `hash_key` | string | `"user_id"` | Partition key attribute name |
 | `range_key` | string | `"created_at"` | Sort key (optional, leave empty if not needed) |
 | `app_name` | string | `"superblocksdemo"` | Application name for tagging |
-| `ecs_task_role_name` | string | `"superblocks-ecs-task-role"` | **NAME** not ARN ⚠️ |
+| `ecs_task_role_name` | string | `"superblocks-ecs-task"` | **NAME** not ARN ⚠️ |
 
 ### ⚠️ Important: Use Role NAME, Not ARN
 
@@ -247,10 +247,10 @@ The module expects the **role name**, not the full ARN:
 
 ```hcl
 # ✅ CORRECT
-ecs_task_role_name = "superblocks-ecs-task-role"
+ecs_task_role_name = "superblocks-ecs-task"
 
 # ❌ WRONG
-ecs_task_role_name = "arn:aws:iam::123456789012:role/superblocks-ecs-task-role"
+ecs_task_role_name = "arn:aws:iam::123456789012:role/superblocks-ecs-task"
 ```
 
 **Why?** The Terraform `aws_iam_role_policy_attachment` resource expects a role name, not an ARN.
@@ -258,8 +258,8 @@ ecs_task_role_name = "arn:aws:iam::123456789012:role/superblocks-ecs-task-role"
 **How to find your role name:**
 ```bash
 # If you have the ARN:
-ARN="arn:aws:iam::123456789012:role/superblocks-ecs-task-role"
-echo ${ARN##*/}  # Outputs: superblocks-ecs-task-role
+ARN="arn:aws:iam::123456789012:role/superblocks-ecs-task"
+echo ${ARN##*/}  # Outputs: superblocks-ecs-task
 
 # Or list all roles:
 aws iam list-roles --query 'Roles[?contains(RoleName, `superblocks`)].RoleName'
@@ -329,7 +329,7 @@ module "sessions_table" {
   hash_key           = "session_id"
   # range_key omitted
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -341,7 +341,7 @@ module "products_table" {
   hash_key           = "product_id"
   hash_key_type      = "N"  # Number instead of String
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -353,7 +353,7 @@ module "orders_table" {
   hash_key           = "customer_id"  # Partition key
   range_key          = "order_date"   # Sort key
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 

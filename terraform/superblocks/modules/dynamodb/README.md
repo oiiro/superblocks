@@ -40,7 +40,7 @@ module "users_table" {
   hash_key           = "user_id"
   range_key          = "created_at"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"  # NAME not ARN
+  ecs_task_role_name = "superblocks-ecs-task"  # NAME not ARN
 }
 ```
 
@@ -53,7 +53,7 @@ module "users_table" {
   hash_key           = "user_id"
   range_key          = "created_at"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 module "transactions_table" {
@@ -62,7 +62,7 @@ module "transactions_table" {
   hash_key           = "txn_id"
   range_key          = "timestamp"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 
 module "sessions_table" {
@@ -70,7 +70,7 @@ module "sessions_table" {
   table_name         = "sessions"
   hash_key           = "session_id"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -85,11 +85,11 @@ module "sessions_table" {
 | `table_name` | Name of the DynamoDB table | `"users"` |
 | `hash_key` | Partition key attribute name | `"user_id"` |
 | `app_name` | Application name for tagging | `"superblocksdemo"` |
-| `ecs_task_role_name` | ECS task IAM role **name** (not ARN) | `"superblocks-ecs-task-role"` |
+| `ecs_task_role_name` | ECS task IAM role **name** (not ARN) | `"superblocks-ecs-task"` |
 
 **⚠️ Important**: Use the **role NAME**, not the ARN:
-- ✅ Correct: `ecs_task_role_name = "superblocks-ecs-task-role"`
-- ❌ Wrong: `ecs_task_role_name = "arn:aws:iam::123456789012:role/superblocks-ecs-task-role"`
+- ✅ Correct: `ecs_task_role_name = "superblocks-ecs-task"`
+- ❌ Wrong: `ecs_task_role_name = "arn:aws:iam::123456789012:role/superblocks-ecs-task"`
 
 ### Optional
 
@@ -230,7 +230,7 @@ module "sessions_table" {
   hash_key           = "session_id"
   # No range_key
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -243,7 +243,7 @@ module "products_table" {
   hash_key_type      = "N"  # Number instead of String
   range_key          = "category"
   app_name           = "superblocksdemo"
-  ecs_task_role_name = "superblocks-ecs-task-role"
+  ecs_task_role_name = "superblocks-ecs-task"
 }
 ```
 
@@ -322,7 +322,7 @@ aws dynamodb list-tables --query 'TableNames[?starts_with(@, `superblocksdemo-`)
 
 ```bash
 # Verify IAM policy is attached
-aws iam list-attached-role-policies --role-name superblocks-ecs-task-role
+aws iam list-attached-role-policies --role-name superblocks-ecs-task
 
 # Check policies
 aws iam list-policies --scope Local | grep superblocksdemo
@@ -344,8 +344,8 @@ If you see errors about the role not being found, verify you're using the **role
 
 ```bash
 # Extract name from ARN
-ARN="arn:aws:iam::123456789012:role/superblocks-ecs-task-role"
-echo ${ARN##*/}  # Outputs: superblocks-ecs-task-role
+ARN="arn:aws:iam::123456789012:role/superblocks-ecs-task"
+echo ${ARN##*/}  # Outputs: superblocks-ecs-task
 ```
 
 ## Architecture
