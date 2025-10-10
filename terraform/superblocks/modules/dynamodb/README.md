@@ -98,6 +98,7 @@ module "sessions_table" {
 | `range_key` | Sort key attribute name | `""` (none) |
 | `hash_key_type` | Hash key type (S/N/B) | `"S"` (String) |
 | `range_key_type` | Range key type (S/N/B) | `"S"` (String) |
+| `additional_role_names` | Additional IAM roles needing access (e.g., bastion) | `[]` (none) |
 
 ## Outputs
 
@@ -105,6 +106,8 @@ module "sessions_table" {
 |------|-------------|
 | `table_name` | Full name of the DynamoDB table (e.g., `superblocksdemo-users`) |
 | `table_arn` | ARN of the DynamoDB table |
+| `iam_policy_arn` | ARN of the IAM policy granting access |
+| `attached_roles` | List of all IAM roles with access to the table |
 
 ## Table Naming
 
@@ -242,6 +245,31 @@ module "products_table" {
   app_name           = "superblocksdemo"
   ecs_task_role_name = "superblocks-ecs-task-role"
 }
+```
+
+### Grant Access to Multiple Roles (ECS + Bastion)
+```hcl
+module "users_table" {
+  source             = "./modules/dynamodb"
+  table_name         = "users"
+  hash_key           = "user_id"
+  range_key          = "created_at"
+  app_name           = "superblocksdemo"
+  ecs_task_role_name = "superblocks-ecs-task"
+
+  # Grant bastion host access for administration
+  additional_role_names = [
+    "superblocks-dev-bastion-role"
+  ]
+}
+```
+
+**Use case:** Allow bastion EC2 instance to access DynamoDB for debugging/administration:
+```bash
+# From bastion host
+aws dynamodb scan --table-name superblocksdemo-users --limit 10
+aws dynamodb get-item --table-name superblocksdemo-users \
+  --key '{"user_id": {"S": "user123"}}'
 ```
 
 ## Key Types

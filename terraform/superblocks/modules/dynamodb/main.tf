@@ -97,7 +97,15 @@ resource "aws_iam_policy" "dynamodb_access" {
 }
 
 # Attach policy to ECS task role
-resource "aws_iam_role_policy_attachment" "dynamodb_access" {
+resource "aws_iam_role_policy_attachment" "dynamodb_access_ecs" {
   role       = var.ecs_task_role_name
+  policy_arn = aws_iam_policy.dynamodb_access.arn
+}
+
+# Attach policy to additional roles (bastion, lambda, etc.)
+resource "aws_iam_role_policy_attachment" "dynamodb_access_additional" {
+  for_each = toset(var.additional_role_names)
+
+  role       = each.value
   policy_arn = aws_iam_policy.dynamodb_access.arn
 }

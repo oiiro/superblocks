@@ -357,6 +357,37 @@ module "orders_table" {
 }
 ```
 
+### Grant access to multiple roles (ECS + Bastion)
+```hcl
+module "users_table" {
+  source             = "./modules/dynamodb"
+  table_name         = "users"
+  hash_key           = "user_id"
+  range_key          = "created_at"
+  app_name           = "superblocksdemo"
+  ecs_task_role_name = "superblocks-ecs-task"
+
+  # 🔑 Grant bastion host access for debugging/administration
+  additional_role_names = [
+    "superblocks-dev-bastion-role"
+  ]
+}
+```
+
+**Use case:** Access DynamoDB from bastion host for administration:
+```bash
+# Connect to bastion via SSM
+aws ssm start-session --target i-1234567890abcdef0
+
+# Query DynamoDB from bastion
+aws dynamodb scan --table-name superblocksdemo-users --limit 10
+
+# Get specific item
+aws dynamodb get-item \
+  --table-name superblocksdemo-users \
+  --key '{"user_id": {"S": "user123"}, "created_at": {"N": "1234567890"}}'
+```
+
 ---
 
 ## 💰 Cost Estimation

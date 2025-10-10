@@ -90,6 +90,42 @@ module "inventory_table" {
 }
 
 # ==============================================================================
+# MULTIPLE ROLES EXAMPLE - Grant Access to ECS + Bastion
+# ==============================================================================
+
+module "admin_table" {
+  source = "./modules/dynamodb"
+
+  table_name         = "admin-logs"
+  hash_key           = "log_id"
+  range_key          = "timestamp"
+  app_name           = "superblocksdemo"
+  ecs_task_role_name = "superblocks-ecs-task"
+
+  # Grant access to bastion host for debugging/administration
+  additional_role_names = [
+    "superblocks-dev-bastion-role"
+  ]
+}
+
+# Multiple additional roles
+module "shared_data_table" {
+  source = "./modules/dynamodb"
+
+  table_name         = "shared-data"
+  hash_key           = "data_id"
+  app_name           = "superblocksdemo"
+  ecs_task_role_name = "superblocks-ecs-task"
+
+  # Grant access to multiple roles (bastion, lambda, etc.)
+  additional_role_names = [
+    "superblocks-dev-bastion-role",
+    "data-processing-lambda-role",
+    "analytics-service-role"
+  ]
+}
+
+# ==============================================================================
 # OUTPUTS
 # ==============================================================================
 

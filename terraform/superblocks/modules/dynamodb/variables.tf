@@ -36,6 +36,12 @@ variable "ecs_task_role_name" {
   type        = string
 }
 
+variable "additional_role_names" {
+  description = "Additional IAM role names that need DynamoDB access (e.g., bastion role, lambda roles)"
+  type        = list(string)
+  default     = []
+}
+
 # Optional Variables with Sensible Defaults
 variable "hash_key_type" {
   description = "Type of the hash key attribute (S = String, N = Number, B = Binary)"
