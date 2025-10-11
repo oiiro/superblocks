@@ -14,7 +14,7 @@ data "aws_caller_identity" "current" {}
 locals {
   # Add your SSO role names here
   sso_roles_with_dynamodb_access = [
-    # "AWSReservedSSO_AWSAdministratorAccess_abc123def456",  # Example - replace with actual role name
+    "AWSReservedSSO_AWSAdministratorAccess_abc123def456", # Example - replace with actual role name
     # "AWSReservedSSO_PowerUserAccess_xyz789ghi012",         # Example - add more roles as needed
     # "AWSReservedSSO_DeveloperAccess_mno345pqr678",         # Example
   ]
@@ -23,7 +23,7 @@ locals {
   # INSTRUCTIONS: Run this command to find IAM users:
   #   aws iam list-users --query 'Users[].UserName' --output table
   vendor_users_with_dynamodb_access = [
-    # "vendor-api-user",      # Example - replace with actual vendor user name
+    "vendor-api-user", # Example - replace with actual vendor user name
     # "external-service",     # Example - add more vendor users as needed
     # "third-party-user",     # Example
   ]
