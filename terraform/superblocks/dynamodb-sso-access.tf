@@ -1,6 +1,6 @@
 # --- dynamodb-sso-access.tf ---
-# Grant AWS SSO users access to all DynamoDB tables
-# This file manages IAM policies for SSO role access to DynamoDB
+# Grant AWS SSO users and vendor IAM users access to all DynamoDB tables
+# This file manages IAM policies for SSO role and vendor user access to DynamoDB
 
 # Get current AWS account ID
 data "aws_caller_identity" "current" {}
@@ -17,6 +17,15 @@ locals {
     # "AWSReservedSSO_AWSAdministratorAccess_abc123def456",  # Example - replace with actual role name
     # "AWSReservedSSO_PowerUserAccess_xyz789ghi012",         # Example - add more roles as needed
     # "AWSReservedSSO_DeveloperAccess_mno345pqr678",         # Example
+  ]
+
+  # Add vendor/external IAM user names here
+  # INSTRUCTIONS: Run this command to find IAM users:
+  #   aws iam list-users --query 'Users[].UserName' --output table
+  vendor_users_with_dynamodb_access = [
+    # "vendor-api-user",      # Example - replace with actual vendor user name
+    # "external-service",     # Example - add more vendor users as needed
+    # "third-party-user",     # Example
   ]
 }
 
@@ -82,6 +91,16 @@ resource "aws_iam_role_policy_attachment" "sso_dynamodb_access" {
   policy_arn = aws_iam_policy.sso_dynamodb_access.arn
 }
 
+# ===== ATTACH POLICY TO VENDOR IAM USERS =====
+
+# Attach the policy to each vendor IAM user
+resource "aws_iam_user_policy_attachment" "vendor_dynamodb_access" {
+  for_each = toset(local.vendor_users_with_dynamodb_access)
+
+  user       = each.value
+  policy_arn = aws_iam_policy.sso_dynamodb_access.arn
+}
+
 # ===== OUTPUTS =====
 
 output "sso_dynamodb_policy_arn" {
@@ -92,4 +111,9 @@ output "sso_dynamodb_policy_arn" {
 output "sso_roles_with_dynamodb_access" {
   description = "List of SSO roles that have DynamoDB access"
   value       = local.sso_roles_with_dynamodb_access
+}
+
+output "vendor_users_with_dynamodb_access" {
+  description = "List of vendor IAM users that have DynamoDB access"
+  value       = local.vendor_users_with_dynamodb_access
 }

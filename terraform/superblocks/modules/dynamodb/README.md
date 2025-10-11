@@ -376,6 +376,82 @@ echo ${ARN##*/}  # Outputs: superblocks-ecs-task
 └─────────────────────────────────────┘
 ```
 
+## Granting Access to SSO Users and Vendor Users
+
+The module handles per-table access (ECS tasks, bastion hosts). For **global access** to all DynamoDB tables by SSO users or vendor IAM users, use the separate configuration file outside the module.
+
+### SSO Users (AWS IAM Identity Center)
+
+Grant access to users who log in via SSO:
+
+**File**: `dynamodb-sso-access.tf` (in root terraform directory)
+
+```hcl
+locals {
+  sso_roles_with_dynamodb_access = [
+    "AWSReservedSSO_AWSAdministratorAccess_abc123def456",
+    "AWSReservedSSO_DeveloperAccess_xyz789ghi012",
+  ]
+}
+```
+
+**Find your SSO roles**:
+```bash
+# List all SSO roles
+aws iam list-roles --query 'Roles[?contains(RoleName, `AWSReservedSSO`)].RoleName' --output table
+
+# Get your current SSO role
+aws sts get-caller-identity
+```
+
+**Important**: SSO role names are permanent and don't change per session. The suffix (e.g., `abc123def456`) is constant within your account.
+
+### Vendor IAM Users (Access Key/Secret Key)
+
+Grant access to external vendors/services that use IAM user credentials:
+
+**File**: `dynamodb-sso-access.tf` (in root terraform directory)
+
+```hcl
+locals {
+  vendor_users_with_dynamodb_access = [
+    "vendor-api-user",
+    "external-service",
+  ]
+}
+```
+
+**Find vendor IAM users**:
+```bash
+# List all IAM users
+aws iam list-users --query 'Users[].UserName' --output table
+
+# Check which users have access keys (API access)
+aws iam list-users --query 'Users[].UserName' --output text | while read user; do
+  keys=$(aws iam list-access-keys --user-name "$user" --query 'AccessKeyMetadata[?Status==`Active`].AccessKeyId' --output text)
+  if [ -n "$keys" ]; then
+    echo "User: $user | Keys: $keys"
+  fi
+done
+```
+
+### Deployment
+
+```bash
+# 1. Edit dynamodb-sso-access.tf with your SSO roles and vendor users
+vi dynamodb-sso-access.tf
+
+# 2. Plan and apply
+terraform plan
+terraform apply
+```
+
+This creates a single IAM policy that grants access to **all** `superblocksdemo-*` tables and attaches it to the specified SSO roles and vendor users.
+
+**See**: `../../dynamodb-sso-access.tf` for the complete configuration
+
+---
+
 ## Files
 
 - **[QUICKSTART.md](./QUICKSTART.md)** - Step-by-step workflow guide
@@ -383,6 +459,7 @@ echo ${ARN##*/}  # Outputs: superblocks-ecs-task
 - **main.tf** - Module implementation
 - **variables.tf** - Input variables
 - **outputs.tf** - Output values
+- **../../dynamodb-sso-access.tf** - SSO and vendor user access configuration
 
 ## License
 

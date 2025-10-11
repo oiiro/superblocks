@@ -418,7 +418,58 @@ Each table automatically gets full CRUD permissions for the ECS task role:
 
 ---
 
+## 🔐 Granting Access to SSO Users and Vendor Users
+
+The module handles **per-table access** (ECS, bastion). For **global access** to ALL tables:
+
+### SSO Users (Administrators/Developers)
+
+**File**: `../../dynamodb-sso-access.tf`
+
+```bash
+# 1. Find your SSO roles
+aws iam list-roles --query 'Roles[?contains(RoleName, `AWSReservedSSO`)].RoleName' --output text
+
+# 2. Edit the file and add role names
+vi ../../dynamodb-sso-access.tf
+
+# Add to sso_roles_with_dynamodb_access:
+#   "AWSReservedSSO_AWSAdministratorAccess_abc123def456",
+#   "AWSReservedSSO_DeveloperAccess_xyz789ghi012",
+
+# 3. Apply
+terraform plan
+terraform apply
+```
+
+**Note**: SSO role names don't change - they're permanent within your account.
+
+### Vendor IAM Users (API Access with Access Keys)
+
+**File**: `../../dynamodb-sso-access.tf`
+
+```bash
+# 1. Find IAM users with access keys
+aws iam list-users --query 'Users[].UserName' --output table
+
+# 2. Edit the file and add user names
+vi ../../dynamodb-sso-access.tf
+
+# Add to vendor_users_with_dynamodb_access:
+#   "vendor-api-user",
+#   "external-service",
+
+# 3. Apply
+terraform plan
+terraform apply
+```
+
+This grants access to **all** `superblocksdemo-*` tables with a single policy.
+
+---
+
 ## 📖 More Info
 
-- **README.md** - Complete documentation
+- **README.md** - Complete documentation with SSO/vendor access details
 - **examples.tf** - More examples
+- **../../dynamodb-sso-access.tf** - SSO and vendor user access configuration
